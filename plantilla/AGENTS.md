@@ -106,6 +106,11 @@ propones. **Espera su visto bueno** antes de arrancar la ola; si cambia algo, vu
   para levantar (back antes que front).
 - **Aceptó** (`/qa-ok <id>` o lo dice expresamente): `pr <id> --probado`. Sale el PR aprobado a su nombre y en
   autocompletar. Si dice que hay commits sin probar, no lo fuerces: `qa <id>` y pide otra prueba.
+- **El orden no cambia aunque tengas permiso para todo**: informe del reviewer (`review.md`) → rama de pruebas →
+  informe de la validación IA (`validacion-ia.md` y capturas) → la persona lo revisa en el panel
+  (`tablero --servir`, pestaña Pendientes) y acepta → PR creado y aprobado. Crear, votar y completar un PR ya no
+  pide confirmación; por eso el visto bueno de la persona en el panel es lo único que lo autoriza. Un PR sin
+  ticket (herramientas, documentación) sale cuando ella lo pide en la conversación.
 - **Falló** (`/qa-falla <id> <qué>`): `qa <id> --falla --text "…"` y de vuelta al implementer con `--text`.
 - Al cerrar la ola: `clean <id>` de los tickets cuyo PR entró, y `qa --reset` cuando no quede nada por probar.
 
@@ -132,8 +137,8 @@ propones. **Espera su visto bueno** antes de arrancar la ola; si cambia algo, vu
 - ✅ **Permisos**: los instala `instalar` en `.claude/settings.json` (fuente: `plantilla/.claude/settings.json`).
   `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar, `progress/`, `orquestador/`
   y **Azure DevOps completo**: `az boards`, `az repos`, `az pipelines` y `az devops`, para crear y cambiar
-  tickets, ramas, PR y pipelines); `ask` para lo que sale hacia afuera o descarta cambios (push, `docker pull`,
-  `checkout`, la propia config) y para lo que en Azure no tiene vuelta o cambia las reglas del equipo (borrar un
+  tickets, ramas, PR y pipelines, además de `git push` y `pr`, para abrir y aprobar un PR de corrido); `ask` para
+  lo que descarta cambios o trae cosas de afuera (`docker pull`, `checkout`, `clean`, la propia config) y para lo que en Azure no tiene vuelta o cambia las reglas del equipo (borrar un
   ticket, un repo, una rama o un pipeline, políticas de rama, usuarios y permisos); `deny` para lo que expone
   credenciales (`az account get-access-token`, `az devops login`) o es irreversible fuera de Azure. Los workers tienen su lista
   en `src/motores/tipos.ts` (`COMANDOS_PERMITIDOS` y `COMANDOS_PROHIBIDOS`). Lo personal de un PC va en
