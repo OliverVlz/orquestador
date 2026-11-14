@@ -79,6 +79,9 @@
       "Write(orquestador/**)"
     ],
     "ask": [
+      "Bash(az repos pr create:*)",
+      "Bash(az repos pr update:*)",
+      "Bash(az repos pr set-vote:*)",
       "Bash(node orquestador/orq.ts pr:*)",
       "Bash(node orquestador/orq.ts clean:*)",
       "Bash(node orquestador/orq.ts motores --probar:*)",
@@ -140,9 +143,6 @@
       "Bash(pnpm publish:*)",
 
       "Bash(az boards work-item delete:*)",
-      "Bash(az repos pr create:*)",
-      "Bash(az repos pr update:*)",
-      "Bash(az repos pr set-vote:*)",
       "Bash(az repos policy create:*)",
       "Bash(az repos policy update:*)",
       "Bash(az repos policy delete:*)",
