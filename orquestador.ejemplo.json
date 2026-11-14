@@ -1,0 +1,100 @@
+{
+  "$comentario": "Ejemplo: cópialo como orquestador.json (no se versiona) y pon tus proyectos. Un proyecto = un proyecto de Azure DevOps con sus repos, que están clonados al lado de esta carpeta. \"worktrees\" es la subcarpeta de worktrees/ donde van las carpetas de los tickets de ese repo. Las cadenas de motores son motor:modelo[:esfuerzo], en orden de preferencia: si el primero no está instalado o se queda sin cuota, entra el siguiente.",
+  "ola": 3,
+  "firma": "Orquestador",
+  "marca": {
+    "nombre": "Mi Equipo",
+    "sigla": "ME"
+  },
+  "personas": [
+    "oliver"
+  ],
+  "proyectos": [
+    {
+      "nombre": "miproyecto",
+      "ado": {
+        "organization": "https://dev.azure.com/mi-organizacion",
+        "project": "MiProyecto",
+        "process": "Basic"
+      },
+      "ramaBase": "main",
+      "soloMios": true,
+      "etiquetaListo": "orq-listo",
+      "repos": [
+        {
+          "dir": "mi_backend",
+          "repository": "mi_backend",
+          "worktrees": "backend",
+          "etiquetas": [
+            "Backend",
+            "Ambos"
+          ],
+          "instalar": "npm ci --no-audit --no-fund",
+          "verificar": "npx tsc --noEmit && npm test",
+          "envGenerar": [
+            "SESSION_SECRET"
+          ],
+          "levantar": "npm run dev",
+          "url": "http://localhost:3000/docs"
+        },
+        {
+          "dir": "mi_frontend",
+          "repository": "mi_frontend",
+          "worktrees": "frontend",
+          "etiquetas": [
+            "Frontend",
+            "Ambos"
+          ],
+          "instalar": "pnpm install --frozen-lockfile",
+          "verificar": "pnpm lint && pnpm build && pnpm test",
+          "levantar": "pnpm dev",
+          "url": "http://localhost:5173"
+        }
+      ]
+    }
+  ],
+  "motores": {
+    "implementer": {
+      "XS": [
+        "agy:gemini-3.8-flash-low",
+        "codex:gpt-6-luna:low",
+        "claude:sonnet"
+      ],
+      "S": [
+        "agy:gemini-3.8-flash-medium",
+        "codex:gpt-5.6-terra:medium",
+        "claude:sonnet"
+      ],
+      "M": [
+        "agy:gemini-3.8-flash-high",
+        "codex:gpt-6-sol:medium",
+        "claude:opus"
+      ],
+      "L": [
+        "agy:gemini-3.8-flash-high",
+        "codex:gpt-6-sol:high",
+        "claude:opus"
+      ],
+      "XL": [
+        "agy:gemini-3.8-flash-high",
+        "codex:gpt-6-sol:xhigh",
+        "claude:opus"
+      ],
+      "*": [
+        "agy:gemini-3.8-flash-high",
+        "codex:gpt-6-sol:medium",
+        "claude:opus"
+      ]
+    },
+    "reviewer": {
+      "*": [
+        "claude:opus",
+        "codex:gpt-6-sol:high"
+      ]
+    }
+  },
+  "escalarTras": {
+    "XL": 1,
+    "*": 2
+  }
+}

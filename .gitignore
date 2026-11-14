@@ -1,0 +1,5 @@
+node_modules/
+# La configuración de tu workspace (organización, proyectos, repos): parte de orquestador.ejemplo.json.
+orquestador.json
+# Ajustes personales (tu rama de pruebas): no se versionan.
+local.json
