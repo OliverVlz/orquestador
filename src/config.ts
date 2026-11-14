@@ -38,6 +38,10 @@ export type ProyectoCfg = {
   ramaBase: string;
   soloMios: boolean;
   etiquetaListo: string;
+  /** Título del PR: {id} es el ticket y {titulo}, el asunto del último commit. Por defecto, "{titulo}". */
+  tituloPr: string;
+  /** Si el PR se completa con squash (un commit por ticket en la rama base). */
+  squash: boolean;
   repos: RepoCfg[];
 };
 
@@ -105,6 +109,8 @@ export function parseConfig(raw: RawConfig, workspace = WORKSPACE, local: { qa?:
       ramaBase: 'main',
       soloMios: true,
       etiquetaListo: 'orq-listo',
+      tituloPr: '{titulo}',
+      squash: false,
       ...p,
       repos,
     } as ProyectoCfg;
@@ -144,6 +150,12 @@ export function loadConfig(orqDir = ORQ_DIR, workspace = WORKSPACE): Config {
 export function qaBranch(cfg: Config): string {
   if (!cfg.qa) fail(`Falta tu rama de pruebas: node ${ORQ_REL}/orq.ts setup --qa <tu-nombre>`);
   return `qa/${cfg.qa}`;
+}
+
+/** El título del PR según la plantilla del proyecto; no repite el id si el asunto ya lo trae. */
+export function tituloDePr(plantilla: string, id: number, titulo: string): string {
+  const limpio = titulo.replace(new RegExp(`^\\[#?${id}\\]\\s*`), '');
+  return plantilla.replaceAll('{id}', String(id)).replaceAll('{titulo}', limpio);
 }
 
 /** qa/oliver -> Oliver */

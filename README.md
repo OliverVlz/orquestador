@@ -94,6 +94,8 @@ node orquestador/orq.ts pr 84 --probado                        # tras tu /qa-ok
 - **`proyectos`**: uno por proyecto de Azure DevOps, con su organización, rama base y repos. Cada repo dice qué
   etiquetas del ticket le corresponden (`Backend`, `Frontend`, `Ambos`) y cómo se instala, verifica y levanta.
   Otro proyecto es otra entrada en la lista.
+- **`tituloPr`** y **`squash`** (por proyecto, opcionales): la plantilla del título del PR (`"[{id}] {titulo}"`;
+  por defecto el asunto del último commit) y si el PR se completa con squash.
 - **`worktrees`** (por repo): la subcarpeta de `worktrees/` donde van las carpetas de sus tickets (`backend`,
   `frontend`, `mobile`…). Si no se pone, es el nombre de la carpeta del repo. No se puede repetir entre repos.
 - **`motores`**: por rol (`implementer`, `reviewer`) y talla (`XS`…`XL`, `*` por defecto), la cadena de

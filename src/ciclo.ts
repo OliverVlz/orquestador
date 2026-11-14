@@ -21,6 +21,7 @@ import {
   escalarTras,
   parseSpec,
   personaDe,
+  tituloDePr,
   qaBranch,
   type Config,
   type MotorSpec,
@@ -454,7 +455,7 @@ export function cmdPr(cfg: Config, id: number, flags: Flags): void {
       tested = shortHead(repo.path, `refs/heads/${branchQa}`);
     }
     const work = repoWorkDir(id, repo);
-    const title = flagText(flags, 'title') || `${commits.at(-1)?.[1] ?? meta.title}`;
+    const title = flagText(flags, 'title') || tituloDePr(p.tituloPr, id, commits.at(-1)?.[1] ?? meta.title);
     const description = [
       `Ticket: ${ticketUrl(p, id)} (#${id}, ${meta.type})`,
       '',

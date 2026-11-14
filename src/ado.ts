@@ -229,6 +229,7 @@ export function createPr(
     '--project', p.ado.project,
     ...org(p),
   ];
+  if (p.squash) args.push('--squash', 'true');
   if (pr.autoComplete) args.push('--auto-complete', 'true', '--delete-source-branch', 'true');
   return azWrite<PullRequest>(args, `abrir PR "${pr.title}" (${pr.source} -> ${p.ramaBase}) en ${pr.repository}`);
 }

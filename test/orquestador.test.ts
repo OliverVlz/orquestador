@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { cadena, parseConfig, parseSpec, reposPorEtiquetas, tallaDe } from '../src/config.ts';
+import { cadena, parseConfig, parseSpec, reposPorEtiquetas, tallaDe, tituloDePr } from '../src/config.ts';
 import { carpetasDe, rutaWorktree } from '../src/git.ts';
 import { boardState, rondasDeCambios, type Evento } from '../src/historial.ts';
 import { install, plan } from '../src/instalar.ts';
@@ -55,6 +55,14 @@ describe('configuración', () => {
     assert.equal(tallaDe(['producto']), '*');
     assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-low');
     assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'claude:opus');
+  });
+
+  it('arma el título del PR con la plantilla del proyecto', () => {
+    assert.equal(cfg.proyectos[0].tituloPr, '{titulo}');
+    assert.equal(cfg.proyectos[0].squash, false);
+    assert.equal(tituloDePr('{titulo}', 84, 'feat(pagos): cobra'), 'feat(pagos): cobra');
+    assert.equal(tituloDePr('[{id}] {titulo}', 84, 'feat(pagos): cobra'), '[84] feat(pagos): cobra');
+    assert.equal(tituloDePr('[{id}] {titulo}', 84, '[84] feat(pagos): cobra'), '[84] feat(pagos): cobra');
   });
 
   it('separa motor, modelo y esfuerzo', () => {
