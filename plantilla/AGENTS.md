@@ -130,10 +130,13 @@ propones. **Espera su visto bueno** antes de arrancar la ola; si cambia algo, vu
   su valor por defecto y un comentario, en su commit, y el reviewer lo exige. Los workers **no** tocan `.env`.
 - ✅ A la persona le hablas en pocas líneas, con el tablero como fuente.
 - ✅ **Permisos**: los instala `instalar` en `.claude/settings.json` (fuente: `plantilla/.claude/settings.json`).
-  `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar, az de lectura, `progress/`
-  y `orquestador/`); `ask` para lo que sale hacia afuera o descarta cambios (PR, push, `docker pull`, `checkout`,
-  la propia config); `deny` para lo irreversible o que expone secretos. Los workers tienen su lista en
-  `src/motores/tipos.ts` (`COMANDOS_PERMITIDOS` y `COMANDOS_PROHIBIDOS`). Lo personal de un PC va en
+  `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar, `progress/`, `orquestador/`
+  y **Azure DevOps completo**: `az boards`, `az repos`, `az pipelines` y `az devops`, para crear y cambiar
+  tickets, ramas, PR y pipelines); `ask` para lo que sale hacia afuera o descarta cambios (push, `docker pull`,
+  `checkout`, la propia config) y para lo que en Azure no tiene vuelta o cambia las reglas del equipo (borrar un
+  ticket, un repo, una rama o un pipeline, políticas de rama, usuarios y permisos); `deny` para lo que expone
+  credenciales (`az account get-access-token`, `az devops login`) o es irreversible fuera de Azure. Los workers tienen su lista
+  en `src/motores/tipos.ts` (`COMANDOS_PERMITIDOS` y `COMANDOS_PROHIBIDOS`). Lo personal de un PC va en
   `.claude/settings.local.json`, que `instalar` no toca.
 
 ## 5. Motores
