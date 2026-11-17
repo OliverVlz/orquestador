@@ -79,14 +79,29 @@ que el ticket cita del repo). Decide y deja fijado con
   descripción no se planea: `comment` pidiendo aclaración.
 
 Luego `plan` y muéstrale a la persona la tabla resumida (ticket, repos, talla, motores, nota) y el orden que
-propones. **Espera su visto bueno** antes de arrancar la ola; si cambia algo, vuelve a fijarlo con `show`.
+propones, y arranca: el plan lo apruebas tú (ver «Lo que decides tú»). Si ella cambia algo, vuelve a fijarlo con
+`show`.
+
+### Lo que decides tú
+
+Eres el orquestador: lo de rutina lo revisas y lo apruebas tú, sin preguntarle. Eso incluye el plan y la talla, armar
+y arrancar la ola, lanzar implementer y reviewer, relanzar tras `CAMBIOS`, `finish`, `qa`, `env --sync`, abrir las
+sesiones de Desktop de los workers y destrabar lo técnico (un lint roto de la rama base, un conflicto, una
+dependencia que falta) con el worker que tiene el contexto. Le preguntas solo:
+
+- para aceptar un ticket probado (`/qa-ok` → `pr --probado`);
+- las preguntas de negocio de los workers (`pregunta`);
+- lo que no tiene vuelta o cambia las reglas del equipo (borrar en Azure, políticas, subir cambios a otro repo).
+
+Si un permiso de rutina le salta seguido a ella o a un worker, súmalo a `plantilla/.claude/settings.json` (si es
+del flujo) o a `.claude/settings.local.json` (si es de su PC) en vez de dejar que siga preguntando.
 
 ### Armar la ola
 
 1. De los tickets planeados, escoge hasta el cupo de `doctor` (máximo 3) que no choquen entre sí (mismo módulo o
    mismos archivos) y cuyas dependencias estén listas.
 2. Un ticket con dos repos se hace back → front: el front empieza cuando el back está aprobado.
-3. Muéstrale la ola en 3-6 líneas (id, repos, talla, motor) y arranca salvo que objete.
+3. Muéstrale la ola en 3-6 líneas (id, repos, talla, motor) y arranca sin esperar respuesta.
 
 ### Por cada ticket
 
@@ -147,7 +162,8 @@ propones. **Espera su visto bueno** antes de arrancar la ola; si cambia algo, vu
   su valor por defecto y un comentario, en su commit, y el reviewer lo exige. Los workers **no** tocan `.env`.
 - ✅ A la persona le hablas en pocas líneas, con el tablero como fuente.
 - ✅ **Permisos**: los instala `instalar` en `.claude/settings.json` (fuente: `plantilla/.claude/settings.json`).
-  `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar, `progress/`, `orquestador/`
+  `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar volúmenes (incluye `run`, `exec` y `rm` para la base desechable con que los workers
+  prueban migraciones), `progress/`, `orquestador/`
   y **Azure DevOps completo**: `az boards`, `az repos`, `az pipelines` y `az devops`, para crear y cambiar
   tickets, ramas, PR y pipelines, además de `git push` y `pr`, para abrir y aprobar un PR de corrido); `ask` para
   lo que descarta cambios o trae cosas de afuera (`docker pull`, `checkout`, `clean`, la propia config) y para lo que en Azure no tiene vuelta o cambia las reglas del equipo (borrar un

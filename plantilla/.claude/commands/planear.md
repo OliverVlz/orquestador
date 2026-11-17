@@ -12,4 +12,4 @@ Actúa como coordinador (`AGENTS.md`, sección 3, «Planear»). No implementes n
    Si un PBI no cabe en L, propón cómo partirlo en lugar de planearlo entero.
 4. `plan` otra vez y muéstrale a la persona una tabla corta (ticket, repos, talla, motor del implementer, nota) y
    el orden que propones, con las dudas que necesiten su respuesta.
-5. Espera su visto bueno. La ola sale con `/ola`.
+5. Las dudas de negocio quedan como pregunta; lo demás lo decides tú («Lo que decides tú» en `AGENTS.md`). La ola sale con `/ola`, sin esperar respuesta.
