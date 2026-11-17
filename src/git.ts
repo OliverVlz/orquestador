@@ -180,7 +180,12 @@ export function ticketsInQa(repo: RepoCfg, qaDir: string, base: string): Array<{
   const enBase = ramasContenidasEn(repo.path, base);
   const seen = new Map<number, string>();
   for (const subject of subjects) {
-    const branch = /Merge branch '([^']+)'/.exec(subject)?.[1];
+    // «Merge branch 'feat/<id>-…'» de git, o un mensaje propio que nombra el ticket («mezclar #<id> …»), como el
+    // que deja un worker al resolver un conflicto a mano.
+    const porId = Number(/#(\d+)\b/.exec(subject)?.[1]);
+    const branch =
+      /Merge branch '([^']+)'/.exec(subject)?.[1] ??
+      (Number.isInteger(porId) ? [...ramas.keys()].find((r) => new RegExp(`/${porId}-`).test(r)) : undefined);
     const id = Number(/\/(\d+)-/.exec(branch ?? '')?.[1]);
     if (!branch || !Number.isInteger(id) || seen.has(id)) continue;
     if (ramas.has(branch) && !enBase.has(branch)) seen.set(id, branch);

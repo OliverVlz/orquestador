@@ -230,7 +230,8 @@ export function createPr(
     ...org(p),
   ];
   if (p.squash) args.push('--squash', 'true');
-  if (pr.autoComplete) args.push('--auto-complete', 'true', '--delete-source-branch', 'true');
+  // Al completarse, el ticket enlazado pasa solo al siguiente estado (Doing -> Done).
+  if (pr.autoComplete) args.push('--auto-complete', 'true', '--delete-source-branch', 'true', '--transition-work-items', 'true');
   return azWrite<PullRequest>(args, `abrir PR "${pr.title}" (${pr.source} -> ${p.ramaBase}) en ${pr.repository}`);
 }
 

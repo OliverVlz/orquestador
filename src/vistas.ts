@@ -74,6 +74,8 @@ export function guiaData(cfg: Config): { rama: string; levantar: Levantar[]; tar
           }
         }
         const pr = prs?.get(ticketBranch) ?? null;
+        // Con squash, los commits del ticket nunca quedan en la base: un PR completado ya no es algo por probar.
+        if (pr?.status === 'completed') continue;
         tareas.push({
           id,
           proyecto: p.nombre,
