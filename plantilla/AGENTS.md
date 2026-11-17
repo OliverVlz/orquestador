@@ -163,7 +163,7 @@ del flujo) o a `.claude/settings.local.json` (si es de su PC) en vez de dejar qu
 - ✅ A la persona le hablas en pocas líneas, con el tablero como fuente.
 - ✅ **Permisos**: los instala `instalar` en `.claude/settings.json` (fuente: `plantilla/.claude/settings.json`).
   `allow` amplio para el trabajo diario (orq, git local, npm/pnpm, docker sin borrar volúmenes (incluye `run`, `exec` y `rm` para la base desechable con que los workers
-  prueban migraciones), `progress/`, `orquestador/`
+  prueban migraciones), `progress/`, `orquestador/`, `worktrees/` (para los workers en Desktop)
   y **Azure DevOps completo**: `az boards`, `az repos`, `az pipelines` y `az devops`, para crear y cambiar
   tickets, ramas, PR y pipelines, además de `git push` y `pr`, para abrir y aprobar un PR de corrido); `ask` para
   lo que descarta cambios o trae cosas de afuera (`docker pull`, `checkout`, `clean`, la propia config) y para lo que en Azure no tiene vuelta o cambia las reglas del equipo (borrar un
