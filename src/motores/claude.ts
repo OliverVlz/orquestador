@@ -21,5 +21,6 @@ export const claude: Motor = {
     ...t.dirsExtra.flatMap((d) => ['--add-dir', d]),
   ],
   stdin: (t) => t.prompt,
+  sesion: { args: ['auth', 'status'], ok: /"loggedIn":\s*true/, login: 'claude (y dentro, /login)' },
   sinCuota: /usage limit reached|claude ai usage limit|credit balance is too low|hit your (?:\w+ )?limit/i,
 };

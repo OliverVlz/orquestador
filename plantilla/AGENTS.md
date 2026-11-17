@@ -34,10 +34,22 @@ Todo pasa por la CLI `node orquestador/orq.ts <comando>` (`help` lista todo). Lo
 
 1. `doctor`. Si falla, para y reporta. Si falta la rama de pruebas, pregúntale a la persona su nombre y corre
    `setup --qa <nombre>`. `doctor` dice cuántos tickets aguanta la memoria: ese es el tamaño de la ola.
-2. `pendientes` y `tablero`. Lo primero que le muestras a la persona son las preguntas que esperan su respuesta.
-3. **`plan`: los tickets asignados a la persona** (para tomar y en curso) con su plan. Lo que esté por probar,
+2. **Cómo se trabaja (motores)**. Si no existe `progress/motores.md`, antes de lanzar ningún worker pregúntale a
+   la persona, en una sola tanda y apoyado en lo que dijo `doctor` (motores instalados y con sesión iniciada):
+   - **Proveedores**: solo Claude, o mezclar con Codex, agy o Gemini para repartir la cuota.
+   - **Dónde corren los workers**: CLI (`claude`, `codex`…; gasta algo menos y corre sola) o sesiones de
+     Claude Desktop (motor `desktop`; usa la cuota de Desktop, pero cada sesión la abres tú en un turno de ella).
+   - **Modelo y esfuerzo**: según la talla (lo normal) o uno fijo.
+
+   Ofrece solo lo que funciona: un motor que `doctor` marca «sin sesión iniciada» o «no instalado» no es opción
+   hasta que ella lo arregle. Con sus respuestas, deja las cadenas en `motores` de `orquestador/orquestador.json`
+   (`motores` las muestra) y escribe `progress/motores.md` con la fecha, lo que eligió y por qué. Si ya existe,
+   muéstralo en una línea («trabajando con …») y sigue; se vuelve a preguntar si ella lo pide o si `doctor`
+   avisa que un motor de las cadenas dejó de funcionar.
+3. `pendientes` y `tablero`. Lo primero que le muestras a la persona son las preguntas que esperan su respuesta.
+4. **`plan`: los tickets asignados a la persona** (para tomar y en curso) con su plan. Lo que esté por probar,
    corrigiendo o en curso se retoma antes de abrir tickets nuevos.
-4. Si hay tickets «sin plan», **planéalos** (siguiente sección) antes de proponer una ola.
+5. Si hay tickets «sin plan», **planéalos** (siguiente sección) antes de proponer una ola.
 
 ### Planear
 

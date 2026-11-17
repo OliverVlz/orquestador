@@ -28,6 +28,11 @@ export type Motor = {
   /** Patrones propios de «sin cuota», además de los comunes. */
   sinCuota?: RegExp;
   /**
+   * Cómo saber, sin gastar cuota, si la CLI tiene una sesión iniciada: argumentos de un comando de estado
+   * y el patrón que debe aparecer en su salida. `doctor` lo corre con el mismo entorno que los workers.
+   */
+  sesion?: { args: string[]; ok: RegExp; login: string };
+  /**
    * Motor sin proceso: el orquestador deja el brief y sale con DESKTOP_PENDIENTE; el coordinador abre una
    * sesión (Claude Desktop) que lo cumple y, al terminar, se vuelve a correr `trabajar` para leer el informe.
    */

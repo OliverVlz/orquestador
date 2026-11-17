@@ -26,6 +26,23 @@ export function binarioDe(motor: Motor): Binario | null {
   return resolverBinario(motor.binario);
 }
 
+/**
+ * ¿La CLI del motor tiene sesión iniciada? null si el motor no sabe decirlo (o es manual). Corre con el
+ * entorno de los workers, así que refleja lo que verá `trabajar`, no lo que ve esta terminal.
+ */
+export function sesionIniciada(motor: Motor): boolean | null {
+  const bin = binarioDe(motor);
+  if (!bin || motor.manual || !motor.sesion) return null;
+  const result = spawnSync(bin.command, [...bin.prefix, ...motor.sesion.args], {
+    encoding: 'utf8',
+    env: entornoLimpio(),
+    windowsHide: true,
+    timeout: 30_000,
+  });
+  if (result.error) return null;
+  return result.status === 0 && motor.sesion.ok.test(`${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+}
+
 export type Final = {
   code: number;
   /** El motor avisó que no tiene cuota: hay que pasar al siguiente de la cadena. */

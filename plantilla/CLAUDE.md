@@ -11,7 +11,7 @@
   coordinador, sigues las reglas de un proyecto o eres un worker.
 - Como coordinador, `node orquestador/orq.ts trabajar …` tarda minutos: lánzalo con `run_in_background` y sigue
   con otro ticket; te avisan cuando termina. No lo envuelvas en `sleep` ni lo consultes en bucle.
-- Al abrir la sesión en esta carpeta, sin que te lo pidan: el arranque de `AGENTS.md` (doctor, pendientes,
+- Al abrir la sesión en esta carpeta, sin que te lo pidan: el arranque de `AGENTS.md` (doctor, motores, pendientes,
   plan) y, si hay tickets sin plan, `/planear`.
 - Comandos rápidos: `/planear`, `/ola`, `/que-probar`, `/qa-ok <id>`, `/qa-falla <id> <qué>`, `/pendientes`,
   `/responder <id> <respuesta>`, `/tablero`.

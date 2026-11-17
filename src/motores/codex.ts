@@ -19,4 +19,5 @@ export const codex: Motor = {
     '-',
   ],
   stdin: (t) => t.prompt,
+  sesion: { args: ['login', 'status'], ok: /logged in/i, login: 'codex login' },
 };

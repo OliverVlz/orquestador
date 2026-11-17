@@ -9,7 +9,7 @@ import { az, typeRules } from './ado.ts';
 import { ROLES, TALLAS, cadena, parseSpec, writeLocal, type Config } from './config.ts';
 import { carpetasDe, git, moverWorktree, rutaCorta, worktreesAntiguos } from './git.ts';
 import { plan } from './instalar.ts';
-import { binarioDe, correrMotor, motorPorNombre } from './motores/correr.ts';
+import { binarioDe, correrMotor, motorPorNombre, sesionIniciada } from './motores/correr.ts';
 import { MOTORES } from './motores/registro.ts';
 import { imprimirResumen, sincronizarEnv } from './envsync.ts';
 import { proyectoPorNombre, repoPorDir } from './tickets.ts';
@@ -84,8 +84,14 @@ export function cmdDoctor(cfg: Config): void {
     const motor = MOTORES[nombre];
     if (!motor) add('FAIL', `Motor "${nombre}" de orquestador.json no existe (conocidos: ${Object.keys(MOTORES).join(', ')})`);
     else if (!binarioDe(motor)) add('WARN', `Motor ${nombre}: no está instalado (se salta en las cadenas)`);
+    else if (sesionIniciada(motor) === false)
+      add('WARN', `Motor ${nombre}: instalado pero sin sesión iniciada (los workers fallarán con él)`, motor.sesion?.login);
     else add('OK', `Motor ${nombre}`);
   }
+  const instalados = Object.values(MOTORES)
+    .filter((m) => !m.manual && !usados.has(m.nombre) && binarioDe(m))
+    .map((m) => m.nombre);
+  if (instalados.length) add('OK', `Motores instalados que no usa ninguna cadena: ${instalados.join(', ')}`);
 
   const { libreGb, totalGb, cupo } = capacidad(cfg.ola);
   add(cupo < cfg.ola ? 'WARN' : 'OK', `Memoria: ${libreGb} GB libres de ${totalGb} GB → hasta ${cupo} ticket(s) a la vez`);
