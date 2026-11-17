@@ -235,7 +235,13 @@ export function createPr(
 }
 
 export function approvePr(p: ProyectoCfg, prId: number): void {
-  azWrite(['repos', 'pr', 'set-vote', '--id', String(prId), '--vote', 'approve', ...org(p)], `PR ${prId}: voto aprobado`);
+  try {
+    azWrite(['repos', 'pr', 'set-vote', '--id', String(prId), '--vote', 'approve', ...org(p)], `PR ${prId}: voto aprobado`);
+  } catch (e) {
+    // TF401181: el PR ya se completó (autocompletar sin revisores obligatorios); el voto sobra.
+    if (!String((e as Error)?.message ?? e).includes('TF401181')) throw e;
+    log(`  PR ${prId} ya completado: sin voto.`);
+  }
 }
 
 export function prOfBranch(p: ProyectoCfg, repository: string, branch: string): PullRequest | null {

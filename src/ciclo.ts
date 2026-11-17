@@ -9,6 +9,7 @@ import {
   approvePr,
   createPr,
   fetchItem,
+  prOfBranch,
   prUrl,
   signed,
   summarize,
@@ -469,11 +470,18 @@ export function cmdPr(cfg: Config, id: number, flags: Flags): void {
         ? `Probado y aceptado por ${personaDe(cfg)} en ${branchQa} (${tested}). Se completa solo al pasar las políticas.`
         : 'Requiere revisión humana antes de completar.',
     ].join('\n');
-    gitWrite(['push', '-u', 'origin', branch], repo.path, `empujar ${branch}`);
-    const pr = createPr(p, { repository: repo.repository, source: branch, title, description, workItem: id, autoComplete: Boolean(tested) });
+    // Si la rama ya tiene un PR, no se abre otro: si sigue activo se empujan los commits nuevos (p. ej. la mezcla
+    // de la base tras un conflicto); si ya se completó, no se empuja (recrearía la rama borrada).
+    const previo = prOfBranch(p, repo.repository, branch);
+    const vivo = previo && previo.status !== 'abandoned' ? previo : null;
+    if (!vivo || vivo.status === 'active') gitWrite(['push', '-u', 'origin', branch], repo.path, `empujar ${branch}`);
+    const pr =
+      vivo ?? createPr(p, { repository: repo.repository, source: branch, title, description, workItem: id, autoComplete: Boolean(tested) });
     if (!pr) continue;
+    if (vivo) log(`  ${repo.dir}: la rama ya tiene el PR ${pr.pullRequestId} (${pr.status}); no se abre otro.`);
     const url = prUrl(p, repo.repository, pr.pullRequestId);
-    if (tested) approvePr(p, pr.pullRequestId);
+    // Sin revisores obligatorios, el autocompletar cierra el PR al crearlo y ya no admite voto.
+    if (tested && pr.status !== 'completed') approvePr(p, pr.pullRequestId);
     updateItem(
       p,
       id,
