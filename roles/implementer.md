@@ -24,10 +24,15 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
 ## Mientras trabajas
 
 - Haz **solo** lo que pide el ticket. Si ves otro problema, anótalo en el informe; no lo arregles.
-- **Nada destructivo.** Prohibido: borrar o recrear contenedores o volúmenes de Docker, vaciar o
-  migrar bases de datos, `git push`, `git reset --hard`, `git clean`, tocar el checkout principal u
-  otras carpetas de tickets. Si una verificación lo necesitaría, no la hagas: anótala como
-  «verificación manual pendiente».
+- **Nada destructivo.** Prohibido: borrar o recrear contenedores o volúmenes de Docker que no creaste,
+  vaciar o migrar bases de datos que no son tuyas, `git push`, `git reset --hard`, `git clean`, tocar
+  el checkout principal u otras carpetas de tickets. Para probar sí puedes levantar tus propios
+  contenedores desechables (`docker run --rm`, en un puerto libre) y apagarlos al terminar. Si una
+  verificación necesitaría otra cosa, no la hagas: anótala como «verificación manual pendiente».
+- **Git sin preguntas a la persona.** Para cambiar de rama usa `git switch`. Para resolver un conflicto
+  edita el archivo (y los generados, como `openapi.json`, se regeneran con su script) y termina con
+  `git add` + `git commit`. No uses `git checkout`, `git restore`, `git stash` ni `git rebase`: piden
+  permiso a la persona y la dejan bloqueada.
 - Escribe pruebas para la lógica nueva.
 - No instales dependencias nuevas salvo que el ticket lo pida.
 - `.env` se puede leer para entender la configuración, pero **nunca** copies un valor al informe, a
