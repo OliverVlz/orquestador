@@ -456,7 +456,10 @@ export function cmdPr(cfg: Config, id: number, flags: Flags): void {
       tested = shortHead(repo.path, `refs/heads/${branchQa}`);
     }
     const work = repoWorkDir(id, repo);
-    const title = flagText(flags, 'title') || tituloDePr(p.tituloPr, id, commits.at(-1)?.[1] ?? meta.title);
+    // El título sale del primer commit del ticket (el que lo nombra), no del más viejo de la rama: en un ticket
+    // apilado (--sobre) o con commits de la base que entraron con squash, el más viejo es de otro ticket.
+    const delTicket = commits.filter(([, s]) => new RegExp(`#${id}\\b`).test(s ?? '') && !/^merge\b|^Merge /i.test(s ?? ''));
+    const title = flagText(flags, 'title') || tituloDePr(p.tituloPr, id, delTicket.at(-1)?.[1] ?? meta.title);
     const description = [
       `Ticket: ${ticketUrl(p, id)} (#${id}, ${meta.type})`,
       '',
