@@ -87,6 +87,26 @@
       ]
     },
     "reviewer": {
+      "XS": [
+        "claude:sonnet",
+        "codex:gpt-5.6-terra:medium"
+      ],
+      "S": [
+        "claude:sonnet",
+        "codex:gpt-6-sol:medium"
+      ],
+      "M": [
+        "claude:opus",
+        "codex:gpt-6-sol:medium"
+      ],
+      "L": [
+        "claude:opus",
+        "codex:gpt-6-sol:high"
+      ],
+      "XL": [
+        "claude:opus",
+        "codex:gpt-6-sol:xhigh"
+      ],
       "*": [
         "claude:opus",
         "codex:gpt-6-sol:high"

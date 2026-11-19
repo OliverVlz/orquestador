@@ -74,6 +74,9 @@ que el ticket cita del repo). Decide y deja fijado con
   y deja el motivo en `--nota`:
   - Seguridad, dinero (cobros, planes, créditos) o concurrencia **nunca** con los modelos más bajos
     (`gemini-3.8-flash-low`, `gpt-6-luna`), aunque el diff sea pequeño: sube la cadena o fija `--implementer`.
+  - El **reviewer** también va por talla, para no gastar un modelo alto en un cambio chico. En seguridad
+    (sesión, roles y permisos, borrados), dinero o concurrencia fija `--reviewer` con una cadena alta aunque
+    la talla sea XS, S o M.
   - Un spike o una decisión de diseño no se implementa: va como pregunta o nota para la persona.
 - **Nota**: dependencias (qué ticket va antes), riesgos y lo que no está claro. Un ticket sin criterios ni
   descripción no se planea: `comment` pidiendo aclaración.

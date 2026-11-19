@@ -54,7 +54,8 @@ describe('configuración', () => {
     assert.equal(tallaDe(['Backend', 'XL', 'Opus']), 'XL');
     assert.equal(tallaDe(['producto']), '*');
     assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-low');
-    assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'claude:opus');
+    assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'claude:sonnet');
+    assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'claude:opus');
   });
 
   it('arma el título del PR con la plantilla del proyecto', () => {
