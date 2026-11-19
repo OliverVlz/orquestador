@@ -458,8 +458,26 @@ export function cmdPr(cfg: Config, id: number, flags: Flags): void {
     const work = repoWorkDir(id, repo);
     // El título sale del primer commit del ticket (el que lo nombra), no del más viejo de la rama: en un ticket
     // apilado (--sobre) o con commits de la base que entraron con squash, el más viejo es de otro ticket.
-    const delTicket = commits.filter(([, s]) => new RegExp(`#${id}\\b`).test(s ?? '') && !/^merge\b|^Merge /i.test(s ?? ''));
-    const title = flagText(flags, 'title') || tituloDePr(p.tituloPr, id, delTicket.at(-1)?.[1] ?? meta.title);
+    // Entre los del ticket se prefiere el primer feat/fix: el primero a secas suele ser preparatorio
+    // («build(deps): agregar …»).
+    // «Del ticket» = el mensaje completo lo nombra (en el asunto o en el pie «Refs #<id>»).
+    const nombran = new Set(
+      git(['log', '-E', `--grep=#${id}([^0-9]|$)`, '--format=%h', `${baseRef(repo, p.ramaBase)}..${branch}`], repo.path)
+        .stdout.split('\n')
+        .filter(Boolean),
+    );
+    const delTicket = commits.filter(([h, s]) => nombran.has(h ?? '') && !/^merge\b|^Merge /i.test(s ?? ''));
+    // Entre los feat/fix, los del alcance que más se repite: un feat(api) preparatorio no le gana a los
+    // feat(records) que son el ticket. `commits` va del más nuevo al más viejo: `.at(-1)` es el primero.
+    const featFix = delTicket.filter(([, s]) => /^(feat|fix)(\(|:|!)/.test(s ?? ''));
+    const alcance = (s: string | undefined) => /^\w+\(([^)]+)\)/.exec(s ?? '')?.[1] ?? '';
+    const veces = new Map<string, number>();
+    for (const [, s] of featFix) veces.set(alcance(s), (veces.get(alcance(s)) ?? 0) + 1);
+    const masComun = [...veces.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const delAlcance = featFix.filter(([, s]) => alcance(s) === masComun);
+    const feats = delAlcance.filter(([, s]) => /^feat/.test(s ?? ''));
+    const principal = feats.at(-1) ?? delAlcance.at(-1) ?? featFix.at(-1) ?? delTicket.at(-1);
+    const title = flagText(flags, 'title') || tituloDePr(p.tituloPr, id, principal?.[1] ?? meta.title);
     const description = [
       `Ticket: ${ticketUrl(p, id)} (#${id}, ${meta.type})`,
       '',
