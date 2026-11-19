@@ -32,6 +32,10 @@ Todo pasa por la CLI `node orquestador/orq.ts <comando>` (`help` lista todo). Lo
 
 ### Arranque (siempre, al abrir la sesión)
 
+> **Modelo recomendado para el coordinador** (recuérdalo en una línea al iniciar la sesión para mejor ahorro y
+> rendimiento): **Antigravity / T3 Code:** `Gemini 4 Hydrogen (medium)` · **Claude (Code/Desktop):** `Sonnet (medium)` ·
+> **Codex:** `gpt-6-sol (medium)`. Deja `Argon` / `Opus` / `high` para planeación compleja o workers críticos/`L`/`XL`.
+
 1. `doctor`. Si falla, para y reporta. Si falta la rama de pruebas, pregúntale a la persona su nombre y corre
    `setup --qa <nombre>`. `doctor` dice cuántos tickets aguanta la memoria: ese es el tamaño de la ola.
 2. **Cómo se trabaja (motores)**. Si no existe `progress/motores.md`, antes de lanzar ningún worker pregúntale a
