@@ -33,6 +33,11 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
   edita el archivo (y los generados, como `openapi.json`, se regeneran con su script) y termina con
   `git add` + `git commit`. No uses `git checkout`, `git restore`, `git stash` ni `git rebase`: piden
   permiso a la persona y la dejan bloqueada.
+- **Navegador sin preguntas.** No abras el navegador del panel de Claude Desktop (`preview_start`,
+  `mcp__Claude_Browser__*`) ni Chrome: piden aprobación a la persona aunque estés en modo auto. Para ver una
+  pantalla, levanta tu servidor con un comando en segundo plano y usa Playwright sin cabeza desde un script
+  (`require('<carpeta del front>/node_modules/playwright')`, o el ayudante del workspace en
+  `progress/qa-ia/navegador.cjs`).
 - Escribe pruebas para la lógica nueva.
 - No instales dependencias nuevas salvo que el ticket lo pida.
 - `.env` se puede leer para entender la configuración, pero **nunca** copies un valor al informe, a
