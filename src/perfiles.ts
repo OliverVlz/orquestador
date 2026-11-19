@@ -34,7 +34,7 @@ const CLAUDE_REV: CadenasRol = {
   M: ['claude:opus:medium'],
   L: ['claude:opus:medium'],
   XL: ['claude:opus:high'],
-  '*': ['claude:opus:high'],
+  '*': ['claude:opus:medium'],
 };
 
 const CODEX_IMPL: CadenasRol = {
@@ -52,7 +52,7 @@ const CODEX_REV: CadenasRol = {
   M: ['codex:gpt-6-sol:medium'],
   L: ['codex:gpt-6-sol:medium'],
   XL: ['codex:gpt-6-sol:high'],
-  '*': ['codex:gpt-6-sol:high'],
+  '*': ['codex:gpt-6-sol:medium'],
 };
 
 const AGY_IMPL: CadenasRol = {

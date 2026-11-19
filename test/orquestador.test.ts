@@ -56,7 +56,7 @@ describe('configuración', () => {
     assert.equal(tallaDe(['producto']), '*');
     assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-medium');
     assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'codex:gpt-6-luna:high');
-    assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'codex:gpt-6-sol:high');
+    assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'codex:gpt-6-sol:medium');
   });
 
   it('arma el título del PR con la plantilla del proyecto', () => {

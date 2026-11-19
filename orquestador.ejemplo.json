@@ -108,8 +108,8 @@
         "claude:opus:high"
       ],
       "*": [
-        "codex:gpt-6-sol:high",
-        "claude:opus:high"
+        "codex:gpt-6-sol:medium",
+        "claude:opus:medium"
       ]
     }
   },
