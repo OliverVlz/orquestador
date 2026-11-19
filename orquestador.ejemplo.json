@@ -68,7 +68,7 @@
       "M": [
         "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
-        "claude:opus:medium"
+        "claude:sonnet:high"
       ],
       "L": [
         "agy:gemini-4-argon-high",
@@ -83,7 +83,7 @@
       "*": [
         "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
-        "claude:opus:medium"
+        "claude:sonnet:high"
       ]
     },
     "reviewer": {
@@ -97,7 +97,7 @@
       ],
       "M": [
         "codex:gpt-6-sol:medium",
-        "claude:opus:medium"
+        "claude:sonnet:high"
       ],
       "L": [
         "codex:gpt-6-sol:medium",
@@ -109,7 +109,7 @@
       ],
       "*": [
         "codex:gpt-6-sol:medium",
-        "claude:opus:medium"
+        "claude:sonnet:high"
       ]
     }
   },

@@ -22,19 +22,19 @@ export type Perfil = {
 const CLAUDE_IMPL: CadenasRol = {
   XS: ['claude:sonnet:low'],
   S: ['claude:sonnet:medium'],
-  M: ['claude:opus:medium'],
+  M: ['claude:sonnet:high'],
   L: ['claude:opus:high'],
   XL: ['claude:opus:xhigh'],
-  '*': ['claude:opus:medium'],
+  '*': ['claude:sonnet:high'],
 };
 
 const CLAUDE_REV: CadenasRol = {
   XS: ['claude:sonnet:medium'],
   S: ['claude:sonnet:high'],
-  M: ['claude:opus:medium'],
+  M: ['claude:sonnet:high'],
   L: ['claude:opus:medium'],
   XL: ['claude:opus:high'],
-  '*': ['claude:opus:medium'],
+  '*': ['claude:sonnet:high'],
 };
 
 const CODEX_IMPL: CadenasRol = {
