@@ -46,6 +46,8 @@ const VALUE_FLAGS = new Set([
   'sobre',
   'publicar',
   'puerto',
+  'perfil',
+  'proveedores',
 ]);
 
 export function parseArgs(argv: string[]): { positional: string[]; flags: Flags } {

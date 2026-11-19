@@ -12,6 +12,7 @@ import { plan } from './instalar.ts';
 import { binarioDe, correrMotor, motorPorNombre, sesionIniciada } from './motores/correr.ts';
 import { MOTORES } from './motores/registro.ts';
 import { imprimirResumen, sincronizarEnv } from './envsync.ts';
+import { PERFILES, aplicarPerfil } from './perfiles.ts';
 import { proyectoPorNombre, repoPorDir } from './tickets.ts';
 import { exec, fail, flagText, isDryRun, log, type Flags } from './util.ts';
 
@@ -148,6 +149,24 @@ export function cmdWorktrees(cfg: Config, flags: Flags): void {
 /* --------------------------------------------------------------------- motores */
 
 export function cmdMotores(cfg: Config, flags: Flags): void {
+  const perfilNombre = flagText(flags, 'perfil');
+  if (perfilNombre) {
+    const provText = flagText(flags, 'proveedores');
+    const proveedores = provText ? provText.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+    const resuelto = aplicarPerfil(perfilNombre, {
+      proveedores,
+      nota: flagText(flags, 'nota') || undefined,
+      dryRun: isDryRun(),
+    });
+    log(`${isDryRun() ? '[dry-run] ' : ''}Perfil aplicado: ${resuelto.perfil} — ${resuelto.descripcion}`);
+    if (resuelto.omitidos.length) log(`  Omitidos: ${resuelto.omitidos.join(', ')}`);
+    for (const rol of ROLES) {
+      for (const [talla, specs] of Object.entries(resuelto.motores[rol])) log(`  ${rol} ${talla.padEnd(3)} ${specs.join(' → ')}`);
+    }
+    if (!isDryRun()) log('done -> actualizado orquestador/orquestador.json y progress/motores.md');
+    return;
+  }
+
   for (const [nombre, motor] of Object.entries(MOTORES)) {
     const bin = binarioDe(motor);
     log(`${nombre.padEnd(8)} ${bin ? `${bin.command}${bin.prefix.length ? ` ${bin.prefix.join(' ')}` : ''}` : 'no instalado'}`);
@@ -156,6 +175,9 @@ export function cmdMotores(cfg: Config, flags: Flags): void {
   for (const rol of ROLES) {
     for (const [talla, specs] of Object.entries(cfg.motores[rol])) log(`${rol} ${talla.padEnd(3)} ${specs.join(' → ')}`);
   }
+  log('');
+  log('Perfiles disponibles (motores --perfil <nombre> [--proveedores a,b]):');
+  for (const p of Object.values(PERFILES)) log(`  ${p.nombre.padEnd(14)} ${p.descripcion}`);
   const probar = flags.probar;
   if (!probar) return;
   log('');
@@ -206,11 +228,16 @@ function probarMotor(nombre: string, modelo: string, esfuerzo: string | null): v
 
 export function cmdSetup(cfg: Config, flags: Flags): void {
   const name = flagText(flags, 'qa').toLowerCase();
-  if (!/^[a-z][a-z0-9-]*$/.test(name)) fail('Uso: setup --qa <nombre>, por ejemplo setup --qa oliver');
-  if (cfg.personas.length > 0 && !cfg.personas.includes(name))
-    fail(`"${name}" no está en "personas" de orquestador.json (${cfg.personas.join(', ')}).`);
-  writeLocal({ qa: name });
-  log(`done -> tu rama de pruebas es qa/${name}: se crea en worktrees/<grupo>/qa con el primer «qa <id>». Nunca se sube.`);
+  const perfil = flagText(flags, 'perfil');
+  if (!name && !perfil) fail('Uso: setup --qa <nombre> [--perfil <perfil>], por ejemplo setup --qa oliver');
+  if (name) {
+    if (!/^[a-z][a-z0-9-]*$/.test(name)) fail('Uso: setup --qa <nombre>, por ejemplo setup --qa oliver');
+    if (cfg.personas.length > 0 && !cfg.personas.includes(name))
+      fail(`"${name}" no está en "personas" de orquestador.json (${cfg.personas.join(', ')}).`);
+    writeLocal({ qa: name });
+    log(`done -> tu rama de pruebas es qa/${name}: se crea en worktrees/<grupo>/qa con el primer «qa <id>». Nunca se sube.`);
+  }
+  if (perfil) cmdMotores(cfg, { ...flags, perfil });
 }
 
 /* ------------------------------------------------------------------------- env */

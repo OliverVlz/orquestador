@@ -58,58 +58,58 @@
       "XS": [
         "agy:gemini-3.8-flash-medium",
         "codex:gpt-6-luna:low",
-        "claude:sonnet"
+        "claude:sonnet:low"
       ],
       "S": [
         "agy:gemini-3.8-flash-high",
         "codex:gpt-6-luna:medium",
-        "claude:sonnet"
+        "claude:sonnet:medium"
       ],
       "M": [
         "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
-        "claude:opus"
+        "claude:opus:medium"
       ],
       "L": [
         "agy:gemini-4-argon-high",
         "codex:gpt-6-sol:high",
-        "claude:opus"
+        "claude:opus:high"
       ],
       "XL": [
         "agy:gemini-4-argon-high",
         "codex:gpt-6-sol:xhigh",
-        "claude:opus"
+        "claude:opus:xhigh"
       ],
       "*": [
         "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
-        "claude:opus"
+        "claude:opus:medium"
       ]
     },
     "reviewer": {
       "XS": [
-        "claude:sonnet",
-        "codex:gpt-6-luna:medium"
+        "codex:gpt-6-luna:high",
+        "claude:sonnet:medium"
       ],
       "S": [
-        "claude:sonnet",
-        "codex:gpt-6-sol:medium"
+        "codex:gpt-6-sol:medium",
+        "claude:sonnet:high"
       ],
       "M": [
-        "claude:opus",
-        "codex:gpt-6-sol:medium"
+        "codex:gpt-6-sol:medium",
+        "claude:opus:medium"
       ],
       "L": [
-        "claude:opus",
-        "codex:gpt-6-sol:high"
+        "codex:gpt-6-sol:medium",
+        "claude:opus:medium"
       ],
       "XL": [
-        "claude:opus",
-        "codex:gpt-6-sol:xhigh"
+        "codex:gpt-6-sol:high",
+        "claude:opus:high"
       ],
       "*": [
-        "claude:opus",
-        "codex:gpt-6-sol:high"
+        "codex:gpt-6-sol:high",
+        "claude:opus:high"
       ]
     }
   },

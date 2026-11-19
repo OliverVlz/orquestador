@@ -5,8 +5,9 @@
  *
  * Diagnóstico
  *   doctor                         máquina, Azure, repos, motores, memoria y si el coordinador está al día
- *   motores [--probar m:modelo]    motores instalados, cadenas por rol y talla; --probar lanza uno de prueba
- *   setup --qa <nombre>            tu rama de pruebas qa/<nombre> (local, nunca se sube)
+ *   motores [--perfil P] [--proveedores a,b] [--nota T] [--probar m:modelo]
+ *                                  motores instalados, cadenas, perfiles; --perfil configura orquestador.json y progress/motores.md
+ *   setup --qa <nombre> [--perfil P]   tu rama de pruebas qa/<nombre> (local, nunca se sube) y perfil opcional de motores
  *   instalar [--check|--dry-run]   instala AGENTS.md, CLAUDE.md y .claude/ del coordinador en el workspace
  *   env --repo <carpeta>           variables de .env frente a .env.example, sin mostrar valores
  *   env --sync [--repo <carpeta>]  junta y deja iguales los .env del repo y de sus carpetas en worktrees/; solo imprime nombres

@@ -11,6 +11,7 @@ import { clasificar } from '../src/motores/correr.ts';
 import { MOTORES } from '../src/motores/registro.ts';
 import type { Trabajo } from '../src/motores/tipos.ts';
 import { leerDictamen, leerInformeImpl, renderRol } from '../src/roles.ts';
+import { PERFILES, aplicarPerfil, renderMotoresMd, resolverPerfil } from '../src/perfiles.ts';
 import { cadenaDe, planDeFlags } from '../src/tickets.ts';
 import { desdeShimNpm, parseArgs, readSection } from '../src/util.ts';
 
@@ -54,8 +55,8 @@ describe('configuración', () => {
     assert.equal(tallaDe(['Backend', 'XL', 'Opus']), 'XL');
     assert.equal(tallaDe(['producto']), '*');
     assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-medium');
-    assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'claude:sonnet');
-    assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'claude:opus');
+    assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'codex:gpt-6-luna:high');
+    assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'codex:gpt-6-sol:high');
   });
 
   it('arma el título del PR con la plantilla del proyecto', () => {
@@ -121,7 +122,7 @@ describe('plan de un ticket', () => {
     assert.equal(plan.nota, 'toca pagos');
     assert.ok(plan.planeado);
     assert.deepEqual(cadenaDe(cfg, { talla: 'L', cadenas: plan.cadenas }, 'implementer').map((m) => m.texto), ['codex:gpt-6-sol:high', 'claude:opus']);
-    assert.equal(cadenaDe(cfg, { talla: 'L', cadenas: plan.cadenas }, 'reviewer')[0].texto, 'claude:opus');
+    assert.equal(cadenaDe(cfg, { talla: 'L', cadenas: plan.cadenas }, 'reviewer')[0].texto, 'codex:gpt-6-sol:medium');
     assert.equal(cadenaDe(cfg, { talla: 'XS' }, 'implementer')[0].texto, 'agy:gemini-3.8-flash-medium');
   });
 
@@ -306,5 +307,50 @@ describe('motor desktop', () => {
 
   it('el motor claude reconoce el límite de sesión como falta de cuota', () => {
     assert.equal(clasificar(MOTORES.claude, 1, "You've hit your session limit · resets 2:50am", '').sinCuota, true);
+  });
+});
+
+describe('perfiles de motores', () => {
+  it('todos los perfiles tienen motores registrados y cadenas válidas para cada talla', () => {
+    for (const nombre of Object.keys(PERFILES)) {
+      const res = resolverPerfil(nombre);
+      const parsed = parseConfig({ ...RAW, motores: res.motores }, 'C:\\ws');
+      for (const rol of ['implementer', 'reviewer'] as const) {
+        for (const t of ['XS', 'S', 'M', 'L', 'XL', '*']) {
+          const chain = cadena(parsed, rol, t);
+          assert.ok(chain.length > 0, `${nombre} ${rol} ${t}`);
+          for (const spec of chain) assert.ok(MOTORES[spec.motor], spec.texto);
+        }
+      }
+    }
+  });
+
+  it('repartido omite proveedores no disponibles y falla si una cadena queda vacía', () => {
+    const sinAgy = resolverPerfil('repartido', { disponibles: ['codex', 'claude'] });
+    assert.deepEqual(sinAgy.omitidos, ['agy']);
+    assert.equal(sinAgy.motores.implementer.M[0], 'codex:gpt-6-sol:medium');
+    assert.equal(sinAgy.motores.reviewer.L[0], 'codex:gpt-6-sol:medium');
+    assert.throws(() => resolverPerfil('repartido', { proveedores: ['agy'] }), /deja vacía la cadena reviewer/);
+    assert.throws(() => resolverPerfil('inexistente'), /Perfil desconocido/);
+  });
+
+  it('aplicarPerfil actualiza orquestador.json y escribe progress/motores.md', () => {
+    const orqDir = join(tmp, 'orq-perfil');
+    const progDir = join(tmp, 'prog-perfil');
+    mkdirSync(orqDir, { recursive: true });
+    writeFileSync(join(orqDir, 'orquestador.json'), JSON.stringify(RAW, null, 2));
+
+    const res = aplicarPerfil('solo-claude', { orqDir, progressDir: progDir, nota: 'prueba', disponibles: ['claude'] });
+    assert.equal(res.perfil, 'solo-claude');
+
+    const updated = JSON.parse(readFileSync(join(orqDir, 'orquestador.json'), 'utf8'));
+    assert.deepEqual(updated.motores.implementer.XS, ['claude:sonnet:low']);
+    assert.deepEqual(updated.motores.reviewer.L, ['claude:opus:medium']);
+    assert.equal(updated.ola, RAW.ola);
+
+    const md = readFileSync(join(progDir, 'motores.md'), 'utf8');
+    assert.match(md, /solo-claude/);
+    assert.match(md, /prueba/);
+    assert.match(renderMotoresMd(res, 'nota', '2026-11-19'), /2026-11-19/);
   });
 });
