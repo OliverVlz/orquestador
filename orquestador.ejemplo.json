@@ -56,32 +56,32 @@
   "motores": {
     "implementer": {
       "XS": [
-        "agy:gemini-3.8-flash-low",
+        "agy:gemini-3.8-flash-medium",
         "codex:gpt-6-luna:low",
         "claude:sonnet"
       ],
       "S": [
-        "agy:gemini-3.8-flash-medium",
-        "codex:gpt-5.6-terra:medium",
+        "agy:gemini-3.8-flash-high",
+        "codex:gpt-6-luna:medium",
         "claude:sonnet"
       ],
       "M": [
-        "agy:gemini-3.8-flash-high",
+        "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
         "claude:opus"
       ],
       "L": [
-        "agy:gemini-3.8-flash-high",
+        "agy:gemini-4-argon-high",
         "codex:gpt-6-sol:high",
         "claude:opus"
       ],
       "XL": [
-        "agy:gemini-3.8-flash-high",
+        "agy:gemini-4-argon-high",
         "codex:gpt-6-sol:xhigh",
         "claude:opus"
       ],
       "*": [
-        "agy:gemini-3.8-flash-high",
+        "agy:gemini-4-hydrogen-medium",
         "codex:gpt-6-sol:medium",
         "claude:opus"
       ]
@@ -89,7 +89,7 @@
     "reviewer": {
       "XS": [
         "claude:sonnet",
-        "codex:gpt-5.6-terra:medium"
+        "codex:gpt-6-luna:medium"
       ],
       "S": [
         "claude:sonnet",

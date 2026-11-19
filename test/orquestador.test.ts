@@ -53,7 +53,7 @@ describe('configuración', () => {
   it('saca la talla de las etiquetas y usa la cadena de esa talla o la por defecto', () => {
     assert.equal(tallaDe(['Backend', 'XL', 'Opus']), 'XL');
     assert.equal(tallaDe(['producto']), '*');
-    assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-low');
+    assert.equal(cadena(cfg, 'implementer', 'XS')[0].texto, 'agy:gemini-3.8-flash-medium');
     assert.equal(cadena(cfg, 'reviewer', 'XS')[0].texto, 'claude:sonnet');
     assert.equal(cadena(cfg, 'reviewer', '*')[0].texto, 'claude:opus');
   });
@@ -122,7 +122,7 @@ describe('plan de un ticket', () => {
     assert.ok(plan.planeado);
     assert.deepEqual(cadenaDe(cfg, { talla: 'L', cadenas: plan.cadenas }, 'implementer').map((m) => m.texto), ['codex:gpt-6-sol:high', 'claude:opus']);
     assert.equal(cadenaDe(cfg, { talla: 'L', cadenas: plan.cadenas }, 'reviewer')[0].texto, 'claude:opus');
-    assert.equal(cadenaDe(cfg, { talla: 'XS' }, 'implementer')[0].texto, 'agy:gemini-3.8-flash-low');
+    assert.equal(cadenaDe(cfg, { talla: 'XS' }, 'implementer')[0].texto, 'agy:gemini-3.8-flash-medium');
   });
 
   it('conserva lo planeado si no se cambia y rechaza tallas o motores que no existen', () => {
