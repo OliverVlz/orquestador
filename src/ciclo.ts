@@ -151,12 +151,31 @@ function siguienteIntento(dir: string, rol: Rol): number {
 
 const newer = (a: string, b: string) => existsSync(a) && (!existsSync(b) || statSync(a).mtimeMs > statSync(b).mtimeMs);
 
-/** El bloque que avisa del otro repo del ticket (la API del back para el front). */
+/**
+ * Los otros repos del mismo proyecto (el back para el front y al revés), con la carpeta donde leerlos:
+ * su carpeta de ticket si este también lo toca y ya existe; si no, el checkout principal (en la rama base).
+ */
+function otrosRepos(p: ProyectoCfg, meta: Meta, repo: RepoCfg): { repo: RepoCfg; dir: string; delTicket: boolean }[] {
+  return p.repos
+    .filter((r) => r.dir !== repo.dir)
+    .map((r) => {
+      const wt = worktreePath(r, meta.id);
+      const delTicket = meta.repos.includes(r.dir) && existsSync(wt);
+      return { repo: r, dir: delTicket ? wt : r.path, delTicket };
+    })
+    .filter((o) => existsSync(o.dir));
+}
+
+/** El bloque que avisa de los otros repos del proyecto (la API y los contratos del back para el front). Siempre va. */
 function contrato(p: ProyectoCfg, meta: Meta, repo: RepoCfg): string {
-  const others = p.repos.filter((r) => meta.repos.includes(r.dir) && r.dir !== repo.dir);
+  const others = otrosRepos(p, meta, repo);
   if (others.length === 0) return '';
-  const where = others.map((o) => `\`${o.dir}\` (su carpeta: \`${worktreePath(o, meta.id)}\`)`).join(', ');
-  return `\n> Este ticket también toca ${where}. Si dependes de lo que se hace allí (por ejemplo, la API del back), léelo de esa carpeta y no lo inventes; si falta algo, termina BLOQUEADO (dependencia).\n`;
+  const where = others
+    .map((o) => `\`${o.repo.dir}\` (\`${o.dir}\`${o.delTicket ? ', la carpeta de este ticket' : `, checkout en ${p.ramaBase}`})`)
+    .join(', ');
+  return `
+> Puedes leer (solo leer) los otros repos del proyecto: ${where}. Ahí están los contratos y la API de los que dependes (por ejemplo, \`documentacion/\` y los endpoints del back): léelos y no los inventes. Si el ticket también toca ese repo, lo que falta allí es dependencia: termina BLOQUEADO (dependencia).
+`;
 }
 
 function correcciones(work: string, flags: Flags): string {
@@ -261,6 +280,11 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
     if (skip > 0) log(`Escalado: ${skip} vuelta(s) sin aprobar → empieza en ${specs[0].texto}.`);
   }
 
+  const dirsExtra = [
+    work,
+    ...otrosRepos(p, meta, repo).map((o) => o.dir),
+    ...flagText(flags, 'dir').split(',').map((d) => d.trim()).filter(Boolean),
+  ];
   const intentos: string[] = [];
   for (const spec of specs) {
     const motor = motorPorNombre(spec.motor);
@@ -285,11 +309,17 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
       log(`  Al terminar la sesión: trabajar ${id} --rol ${rol} --repo ${repo.dir}`);
       return { rol, resultado: 'DESKTOP_PENDIENTE', motor: spec.texto, informe: rel(informe), detalle: prompt };
     }
-    for (let red = 0; red <= 2; red += 1) {
+    let sinInformeReintentado = false;
+    for (let red = 0; ; red += 1) {
       const n = siguienteIntento(work, rol);
       const promptFile = join(work, `brief-${rol}-${n}.md`);
       const logBase = join(work, `${rol}-${n}-${spec.motor}`);
-      const prompt = renderRol(rol, vars) + (red > 0 ? '\n---\nEl intento anterior se cortó por un error de red: revisa `git status` y `git diff` y continúa desde ahí.\n' : '');
+      const nota = sinInformeReintentado
+        ? `\n---\nEl intento anterior terminó sin dejar un informe válido en ${informe}: revisa \`git status\` y \`git diff\`, termina lo que falte y escribe el informe con el formato exacto del rol.\n`
+        : red > 0
+          ? '\n---\nEl intento anterior se cortó por un error de red: revisa `git status` y `git diff` y continúa desde ahí.\n'
+          : '';
+      const prompt = renderRol(rol, vars) + nota;
       const headBefore = shortHead(cwd);
       const started = Date.now();
       log(`→ ${rol} de #${id} en ${repo.dir} con ${spec.texto} (intento ${n})…`);
@@ -297,7 +327,7 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
         log(`[dry-run] ${spec.texto} en ${cwd} · prompt ${rel(promptFile)}`);
         return { rol, resultado: 'DRY_RUN', motor: spec.texto, informe: rel(informe), detalle: '' };
       }
-      const final = correrMotor(motor, { cwd, prompt, promptFile, modelo: spec.modelo, esfuerzo: spec.esfuerzo, dirsExtra: [work] }, logBase);
+      const final = correrMotor(motor, { cwd, prompt, promptFile, modelo: spec.modelo, esfuerzo: spec.esfuerzo, dirsExtra: dirsExtra }, logBase);
       const res = rol === 'implementer' ? leerInformeImpl(informe, started) : leerDictamen(informe, started);
       if (res) return cerrar(res, spec.texto, headBefore);
       if (final.sinCuota) {
@@ -308,6 +338,12 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
       }
       if (final.corteRed && red < 2) {
         log(`${spec.texto}: corte de red, reintento ${red + 1} de 2 sobre la misma carpeta.`);
+        continue;
+      }
+      if (!sinInformeReintentado) {
+        sinInformeReintentado = true;
+        record({ id, proyecto: p.nombre, repo: repo.dir, event: 'trabajo', rol, motor: spec.texto, resultado: 'SIN_INFORME' });
+        log(`${spec.texto} no dejó un informe válido en ${rel(informe)}: reintento una vez con el mismo motor.`);
         continue;
       }
       record({ id, proyecto: p.nombre, repo: repo.dir, event: 'trabajo', rol, motor: spec.texto, resultado: 'SIN_INFORME' });

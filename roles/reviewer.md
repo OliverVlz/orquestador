@@ -39,6 +39,11 @@ datos). Si algo solo se comprueba así, escríbelo como «verificación manual p
   conflictos y sin cambios sin confirmar.
 - Lo menor (nombres, un comentario) no bloquea: va en sugerencias.
 - Ante la duda en seguridad, dinero o datos de clientes: `CAMBIOS`.
+- **Todos los bloqueantes, en una sola pasada.** Termina los 7 pasos completos antes de dictaminar y
+  lista en «Bloqueantes» **todo** lo que impide aprobar, no solo lo primero que encuentres. Cada vuelta
+  de `CAMBIOS` cuesta una corrida entera del implementer y del reviewer; en la siguiente revisión solo
+  puede aparecer algo nuevo si lo introdujo la corrección. No guardes hallazgos para después ni los
+  repartas entre vueltas: si lo viste, va ahora (lo menor, en sugerencias).
 
 ## Tu dictamen (obligatorio)
 

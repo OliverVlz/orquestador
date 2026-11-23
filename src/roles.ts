@@ -18,7 +18,7 @@ export function renderRol(rol: Rol, vars: Record<string, string>, orqDir = ORQ_D
 
 export type InformeImpl = {
   estado: 'LISTO' | 'BLOQUEADO';
-  tipo: 'informacion' | 'dependencia' | 'negocio' | null;
+  tipo: 'informacion' | 'dependencia' | 'negocio' | 'permiso' | 'ruta' | null;
   pregunta: string | null;
   resumen: string;
 };
@@ -34,7 +34,7 @@ export function leerInformeImpl(path: string, desde = 0): InformeImpl | null {
   const text = readFileSync(path, 'utf8');
   const estado = field(text, 'ESTADO')?.toUpperCase().match(/^(LISTO|BLOQUEADO)/)?.[1];
   if (!estado) return null;
-  const tipo = field(text, 'TIPO_BLOQUEO')?.toLowerCase().match(/^(informacion|información|dependencia|negocio)/)?.[1];
+  const tipo = field(text, 'TIPO_BLOQUEO')?.toLowerCase().match(/^(informacion|información|dependencia|negocio|permiso|ruta)/)?.[1];
   return {
     estado: estado as InformeImpl['estado'],
     tipo: tipo ? ((tipo === 'información' ? 'informacion' : tipo) as InformeImpl['tipo']) : null,

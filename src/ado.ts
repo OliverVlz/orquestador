@@ -291,7 +291,7 @@ export type Relaciones = { parent: number | null; children: number[]; predecesso
 
 export function parseRelations(relations: WorkItem['relations'] = []): Relaciones {
   const out: Relaciones = { parent: null, children: [], predecessors: [], successors: [], related: [], attachments: [] };
-  for (const relation of relations) {
+  for (const relation of relations ?? []) {
     if (relation.rel === 'AttachedFile') {
       out.attachments.push(relation.attributes?.name ?? 'adjunto');
       continue;

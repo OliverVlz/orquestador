@@ -52,6 +52,8 @@ No te quedes esperando ni inventes. Termina con `ESTADO: BLOQUEADO` y clasifica 
 - `informacion`: falta saber cómo está hecho algo (otro repo, un contrato, un documento).
 - `dependencia`: necesitas algo de otro ticket que no está.
 - `negocio`: ambigüedad de alcance, una regla de negocio, o algo que debe aprobar una persona.
+- `permiso`: el motor te negó un comando o una herramienta que el trabajo necesita (di cuál, exacto).
+- `ruta`: necesitas leer o escribir una carpeta fuera de las que ves (di la ruta exacta).
 
 Escribe la pregunta concreta en `PREGUNTA:`. El orquestador la resuelve o se la pasa a la persona.
 
@@ -69,7 +71,7 @@ Escribe `{{INFORME}}` con exactamente este formato. Es lo único que lee el orqu
 
 ```
 ESTADO: LISTO | BLOQUEADO
-TIPO_BLOQUEO: informacion | dependencia | negocio   (solo si BLOQUEADO)
+TIPO_BLOQUEO: informacion | dependencia | negocio | permiso | ruta   (solo si BLOQUEADO)
 PREGUNTA: la pregunta concreta                       (solo si BLOQUEADO)
 
 ## Resumen

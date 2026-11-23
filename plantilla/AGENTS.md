@@ -127,6 +127,10 @@ del flujo) o a `.claude/settings.local.json` (si es de su PC) en vez de dejar qu
 
 - `informacion`: averígualo tú (lee el repo o el documento) y relanza con `--text "<la respuesta>"`.
 - `dependencia`: ese ticket espera; prioriza el que falta.
+- `permiso` o `ruta` (el motor le negó un comando o una carpeta): lo resuelves tú, sin gastar otro intento de
+  motor. Un `permiso` de rutina se suma a `COMANDOS_PERMITIDOS` (`src/motores/tipos.ts`) o a
+  `.claude/settings.json`; una `ruta`, se relanza con `--dir <carpeta>[,<otra>]`. Relanza con el **mismo** motor
+  (sin `--motor`: este bloqueo no cuenta como vuelta ni escala la cadena) y `--text` diciendo qué quedó resuelto.
 - `negocio` (alcance, una regla, una aprobación): **no la respondes tú**. `pregunta <id> --text "…"` y sigue con
   los demás. Cuando la persona responde (`responder`), relanza con `--text`.
 

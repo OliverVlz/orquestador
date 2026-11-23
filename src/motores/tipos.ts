@@ -46,7 +46,7 @@ export type Motor = {
  */
 export const COMANDOS_PERMITIDOS = [
   'npm', 'npx', 'pnpm', 'node',
-  'git status', 'git diff', 'git log', 'git show', 'git add', 'git commit',
+  'git status', 'git diff', 'git log', 'git show', 'git add', 'git commit', 'git rm', 'git mv',
   'git rev-parse', 'git branch', 'git merge-base', 'git merge-tree', 'git fetch',
   'git merge', 'git ls-files', 'git grep', 'git blame', 'git for-each-ref', 'git cat-file',
   'ls', 'cat', 'grep', 'rg', 'find', 'head', 'tail', 'wc', 'sort', 'cut', 'diff',
