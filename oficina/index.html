@@ -95,6 +95,23 @@
   @keyframes menear { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-1.2deg); } 75% { transform: rotate(1.2deg); } }
   .cartel .vacio { color: #8a5a3b; margin: calc(var(--s) * 2px) 0; }
 
+  .globo {
+    position: absolute; background: #fff; color: #2b1a10; font-size: calc(var(--s) * 4px); line-height: 1.2; white-space: nowrap;
+    padding: calc(var(--s) * 1px) calc(var(--s) * 2px); box-shadow: 0 0 0 calc(var(--s) * 1px) #2b1a10;
+    opacity: 0; transform: translateY(3px); transition: opacity .3s, transform .3s; pointer-events: none;
+  }
+  .globo.ver { opacity: 1; transform: none; }
+  .globo::after { content: ""; position: absolute; left: calc(var(--s) * 4px); bottom: calc(var(--s) * -3px);
+    border: calc(var(--s) * 1.5px) solid transparent; border-top-color: #2b1a10; }
+  .globo.prueba { background: #fff6d6; }
+  .rojo {
+    position: absolute; display: none; text-align: center; color: #fff; background: #d62839; font-weight: bold;
+    font-size: calc(var(--s) * 3.6px); line-height: 1.2; padding: calc(var(--s) * 0.8px) calc(var(--s) * 1px);
+    box-shadow: 0 0 0 calc(var(--s) * 0.7px) #6a0f19; animation: menear 2.4s ease-in-out infinite;
+  }
+  .rojo.ver { display: block; }
+  .cartel .act { color: #8a5a3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cartel .act.dormido { color: #d62839; font-weight: bold; }
   #burbuja {
     position: absolute; left: calc(var(--s) * 86px); top: calc(var(--s) * 116px); max-width: calc(var(--s) * 70px);
     background: #fff; color: #2b1a10; font-size: calc(var(--s) * 4.4px); line-height: 1.25;
@@ -204,6 +221,10 @@ const ASPECTO = [
 ];
 const COLOR_MODO = { trabajando: '#e07a32', revisando: '#8e6cc9', esperando: '#2a9d8f', bloqueado: '#d62839', libre: '#5f8f3e' };
 const EN_ESCRITORIO = new Set(['trabajando', 'revisando', 'esperando', 'bloqueado']);
+// En su escritorio: con el ticket en sus manos, o mirando correr las pruebas aunque ya esté aprobado.
+const alEscritorio = (d) => Boolean(d && (EN_ESCRITORIO.has(d.modo) || d.pruebas || d.atascado));
+const PUERTA = { x: 146, y: 248 };
+const REVISOR = { piel: '#e0ac69', pelo: '#8a8a8a', estilo: 'corto', camisa: '#d8c8a8', pantalon: '#4a3f35', gafas: true };
 
 /* ----------------------------------------------------------- fondo fijo (se pinta una vez) */
 function pintarFondo() {
@@ -398,6 +419,11 @@ function pantalla(i, cx, modo, t, tecleando) {
     R(sx, sy, sw, sh, '#0e2a20');
     if (Math.floor(t / 700) % 4) glifo(CHECK, sx + 9, sy + 6, '#7ee787');
     R(sx + 3, sy + sh - 3, sw - 6, 1, '#2d6a4f');
+  } else if (modo === 'pruebas') {
+    R(sx, sy, sw, sh, '#0f1d17');
+    const n = Math.floor(t / 140 + i * 11) % 66;
+    for (let k = 0; k < Math.min(n, 60); k++) R(sx + 2 + (k % 12) * 2, sy + 2 + Math.floor(k / 12) * 3, 1, 2, k % 17 === 9 ? '#ffb703' : '#3fb950');
+    R(sx + 2, sy + sh - 3, Math.round((sw - 4) * Math.min(n, 60) / 60), 1, '#7ee787');
   } else if (modo === 'duda') {
     R(sx, sy, sw, sh, '#2a1a0e');
     if (Math.floor(t / 500) % 2) glifo(PREGUNTA, sx + 10, sy + 5, '#ffb703');
@@ -413,14 +439,26 @@ function silla(cx) {
   R(cx - 12, 197, 24, 3, '#3a3a4e'); R(cx - 1, 200, 2, 8, '#2c2c3a'); R(cx - 8, 208, 16, 2, '#2c2c3a');
   R(cx - 9, 210, 3, 2, '#1a1a22'); R(cx + 6, 210, 3, 2, '#1a1a22'); R(cx - 1, 210, 2, 2, '#1a1a22');
 }
+function engranaje(x, y, t) {
+  const a0 = Math.floor(t / 90) * Math.PI / 8;
+  for (let k = 0; k < 8; k++) { const a = a0 + k * Math.PI / 4; R(x + Math.round(Math.cos(a) * 4) - 1, y + Math.round(Math.sin(a) * 4) - 1, 2, 2, '#b8862e'); }
+  circulo(x, y, 3, '#e9c46a'); circulo(x, y, 1, '#5a3a22');
+}
+function zetas(x, y, t, n) {
+  for (let k = 0; k < 3; k++) {
+    const p = (t / 2400 + k / 3 + n * 0.1) % 1;
+    X.globalAlpha = 1 - p; glifo(ZETA, x + Math.round(p * 7 + Math.sin(p * 6) * 2), y - Math.round(p * 16), '#fff7e6'); X.globalAlpha = 1;
+  }
+}
 function deEspaldas(cx, a, modo, t, n) {
   const sombra = oscuro(a.camisa);
-  // cabeza vista desde atrás
-  R(cx - 5, 160, 10, 10, a.pelo);
-  R(cx - 6, 164, 1, 3, a.piel); R(cx + 5, 164, 1, 3, a.piel);
-  if (a.estilo === 'mono') { R(cx - 2, 156, 4, 4, a.pelo); R(cx - 2, 159, 4, 1, '#e76f51'); }
-  if (a.estilo === 'rizos') { R(cx - 6, 161, 1, 6, a.pelo); R(cx + 5, 161, 1, 6, a.pelo); R(cx - 4, 159, 8, 1, a.pelo); R(cx - 3, 158, 2, 1, a.pelo); R(cx + 1, 158, 2, 1, a.pelo); }
-  if (a.estilo === 'gorra') { R(cx - 5, 159, 10, 5, a.gorra); R(cx - 5, 159, 10, 1, oscuro(a.gorra, 1.3)); R(cx - 1, 163, 2, 1, '#fff'); }
+  // cabeza vista desde atrás (dormido: caída hacia el escritorio)
+  const c = modo === 'dormido' ? 4 + Math.round(Math.sin(t / 900)) : 0;
+  R(cx - 5, 160 + c, 10, 10 - Math.min(c, 2), a.pelo);
+  R(cx - 6, 164 + c, 1, 3, a.piel); R(cx + 5, 164 + c, 1, 3, a.piel);
+  if (a.estilo === 'mono') { R(cx - 2, 156 + c, 4, 4, a.pelo); R(cx - 2, 159 + c, 4, 1, '#e76f51'); }
+  if (a.estilo === 'rizos') { R(cx - 6, 161 + c, 1, 6, a.pelo); R(cx + 5, 161 + c, 1, 6, a.pelo); R(cx - 4, 159 + c, 8, 1, a.pelo); R(cx - 3, 158 + c, 2, 1, a.pelo); R(cx + 1, 158 + c, 2, 1, a.pelo); }
+  if (a.estilo === 'gorra') { R(cx - 5, 159 + c, 10, 5, a.gorra); R(cx - 5, 159 + c, 10, 1, oscuro(a.gorra, 1.3)); R(cx - 1, 163 + c, 2, 1, '#fff'); }
   R(cx - 2, 170, 4, 2, a.piel);
   // torso
   R(cx - 8, 172, 16, 12, a.camisa); R(cx + 5, 172, 3, 12, sombra); R(cx - 3, 172, 6, 1, sombra);
@@ -442,6 +480,15 @@ function deEspaldas(cx, a, modo, t, n) {
   } else if (modo === 'esperando') {
     if (fase > 6.5) { R(cx - 10, 152, 3, 20, a.camisa); R(cx - 10, 150, 3, 2, a.piel); R(cx + 7, 152, 3, 20, sombra); R(cx + 7, 150, 3, 2, a.piel); }
     else { R(cx - 12, 177, 3, 7, a.camisa); R(cx - 12, 184, 3, 2, a.piel); R(cx + 9, 177, 3, 7, sombra); R(cx + 9, 184, 3, 2, a.piel); }
+  } else if (modo === 'dormido') {
+    R(cx - 12, 168, 6, 4, a.camisa); R(cx + 6, 168, 6, 4, sombra); R(cx - 12, 167, 4, 2, a.piel); R(cx + 8, 167, 4, 2, a.piel);
+    zetas(cx + 6, 156, t, n);
+  } else if (modo === 'pruebas') {
+    R(cx - 12, 177, 3, 7, a.camisa); R(cx - 12, 184, 3, 2, a.piel);
+    const taza = (t / 1000 + n) % 6 < 2;
+    if (taza) { R(cx + 8, 170, 3, 6, sombra); R(cx + 8, 168, 3, 2, a.piel); R(cx + 7, 165, 4, 3, '#fefefe'); vapor(cx + 9, 163, t, n * 0.2); }
+    else { R(cx + 9, 177, 3, 7, sombra); R(cx + 9, 184, 3, 2, a.piel); }
+    engranaje(cx - 21, 134, t);
   } else if (modo === 'bloqueado') {
     R(cx - 12, 177, 3, 7, a.camisa); R(cx - 12, 184, 3, 2, a.piel);
     const r = Math.floor(t / 180) % 2;
@@ -475,6 +522,13 @@ function deFrente(x, y, a, pose, t, n, accion) {
     const sorbo = (t / 1000 + n * 1.3) % 5 < 1.4;
     if (sorbo) { R(x + 6, ty + 1, 2, 5, sombra); R(x + 4, ty - 1, 2, 2, a.piel); R(x + 1, ty - 3, 3, 3, '#fefefe'); }
     else { R(x + 6, ty + 1, 2, 8, sombra); R(x + 6, ty + 8, 2, 2, a.piel); R(x + 7, ty + 6, 3, 3, '#fefefe'); R(x + 10, ty + 7, 1, 1, '#fefefe'); vapor(x + 8, ty + 5, t, n * 0.3); }
+  } else if (accion === 'lupa') {
+    const osc = Math.round(Math.sin(t / 380) * 2);
+    R(x + 6, ty + 1, 2, 4, sombra); R(x + 7 + osc, ty - 2, 2, 4, sombra); R(x + 7 + osc, ty - 4, 2, 2, a.piel);
+    R(x + 9 + osc, ty - 6, 1, 3, '#6b4630');
+    circulo(x + 11 + osc, ty - 9, 3, '#c9a15a'); circulo(x + 11 + osc, ty - 9, 2, '#bde0fe'); R(x + 10 + osc, ty - 10, 1, 1, '#fff');
+    R(x - 12, ty + 5, 6, 8, '#8a5a3b'); R(x - 11, ty + 6, 4, 6, '#fdf6e3'); R(x - 10, ty + 4, 2, 2, '#c0c0c0');
+    R(x - 10, ty + 8, 2, 1, '#9a9a9a'); R(x - 10, ty + 10, 3, 1, '#9a9a9a');
   } else if (accion === 'celular') {
     R(x + 4, ty + 4, 2, 5, sombra); R(x + 1, ty + 3, 3, 4, '#2d2a3e'); R(x + 2, ty + 4, 1, 2, Math.floor(t / 600) % 2 ? '#79c0ff' : '#a5d8ff');
     R(x - 4, ty + 6, 6, 2, a.camisa); R(x - 2, ty + 5, 2, 2, a.piel);
@@ -495,6 +549,7 @@ function deFrente(x, y, a, pose, t, n, accion) {
   else { R(x - 3, top + 4, 1, 2, '#2b1d14'); R(x + 2, top + 4, 1, 2, '#2b1d14'); }
   R(x - 4, top + 7, 1, 1, 'rgba(231,111,81,.45)'); R(x + 3, top + 7, 1, 1, 'rgba(231,111,81,.45)');
   R(x - 1, top + 7, 2, 1, '#9c4a2f');
+  if (a.gafas) { R(x - 5, top + 4, 4, 1, '#3b2414'); R(x + 1, top + 4, 4, 1, '#3b2414'); R(x - 5, top + 5, 1, 2, '#3b2414'); R(x + 4, top + 5, 1, 2, '#3b2414'); R(x - 1, top + 4, 2, 1, '#3b2414'); }
   if (accion === 'dormir') {
     for (let k = 0; k < 2; k++) { const p = (t / 2200 + k / 2) % 1; X.globalAlpha = 1 - p; glifo(ZETA, x + 5 + Math.round(p * 6), top - 4 - Math.round(p * 12), '#fff7e6'); X.globalAlpha = 1; }
   }
@@ -553,7 +608,7 @@ function repartir() {
   const libres = [];
   for (const a of agentes) {
     const modo = a.dato?.modo;
-    if (a.dato && EN_ESCRITORIO.has(modo)) irA(a, { tipo: 'escritorio' });
+    if (alEscritorio(a.dato)) irA(a, { tipo: 'escritorio' });
     else libres.push(a);
   }
   // cada libre conserva su sitio si puede; si no, toma el primero libre de su preferencia
@@ -574,7 +629,36 @@ function repartir() {
   }
   for (const a of libres) if (!pendientes.includes(a) && !a.colocado) irA(a, a.destino);
 }
+const revisores = ESCRITORIOS.map(() => ({ x: PUERTA.x, y: PUERTA.y, ruta: [], estado: 'fuera' }));
+let primeraCarga = true;
+function revisorA(i, quiere) {
+  const r = revisores[i];
+  const sitio = { x: ESCRITORIOS[i] + 34, y: 228 };
+  if (quiere && (r.estado === 'fuera' || r.estado === 'sale')) {
+    if (primeraCarga) { Object.assign(r, { x: sitio.x, y: sitio.y, ruta: [], estado: 'ahi' }); return; }
+    if (r.estado === 'fuera') { r.x = PUERTA.x; r.y = PUERTA.y; }
+    r.ruta = [{ x: r.x, y: PUERTA.y }, { x: sitio.x, y: PUERTA.y }, sitio];
+    r.estado = 'llega';
+  } else if (!quiere && (r.estado === 'ahi' || r.estado === 'llega')) {
+    if (primeraCarga) { r.estado = 'fuera'; return; }
+    r.ruta = [{ x: r.x, y: PUERTA.y }, { x: PUERTA.x, y: PUERTA.y }];
+    r.estado = 'sale';
+  }
+}
+function avanzar(o, dt) {
+  let paso = 36 * dt;
+  while (paso > 0 && o.ruta.length) {
+    const p = o.ruta[0]; const dx = p.x - o.x, dy = p.y - o.y; const d = Math.hypot(dx, dy);
+    if (d <= paso) { o.x = p.x; o.y = p.y; paso -= d; o.ruta.shift(); }
+    else { o.x += dx / d * paso; o.y += dy / d * paso; paso = 0; }
+  }
+  return !o.ruta.length;
+}
 function mover(dt) {
+  for (const r of revisores) {
+    if (r.estado !== 'llega' && r.estado !== 'sale') continue;
+    if (avanzar(r, dt)) r.estado = r.estado === 'llega' ? 'ahi' : 'fuera';
+  }
   for (const a of agentes) {
     if (a.pose !== 'camina') continue;
     let paso = 36 * dt;
@@ -597,6 +681,25 @@ function cartel(id, izq, ancho) {
   el.style.left = `calc(var(--s) * ${izq}px)`; el.style.width = `calc(var(--s) * ${ancho}px)`;
   return el;
 }
+function duracion(m) {
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} h ${m % 60} min` : `${Math.floor(h / 24)} d ${h % 24} h`;
+}
+function hace(iso) {
+  if (!iso) return 'sin datos';
+  const m = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000));
+  if (m < 60) return m < 1 ? 'hace <1 min' : `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `hace ${h}h${String(m % 60).padStart(2, '0')}` : `hace ${Math.floor(h / 24)}d${h % 24}h`;
+}
+function extra(id, clase, izq, arriba, ancho) {
+  let el = document.getElementById(id);
+  if (!el) { el = document.createElement('div'); el.id = id; el.className = clase; capa.appendChild(el); }
+  el.style.left = `calc(var(--s) * ${izq}px)`; el.style.top = `calc(var(--s) * ${arriba}px)`;
+  if (ancho) el.style.width = `calc(var(--s) * ${ancho}px)`;
+  return el;
+}
 const ICONO = { trabajando: '⌨', revisando: '🔍', esperando: '⏳', bloqueado: '❓', libre: '☕' };
 function pintarCarteles() {
   agentes.forEach((a, i) => {
@@ -615,7 +718,18 @@ function pintarCarteles() {
       `<div class="barra"><i style="width:calc(${d.pct}% - 2px)"></i></div>` +
       `<div class="fila"><span class="pct">${d.done ? '✔ DONE' : d.pct + '%'}</span><span class="falta">${d.done ? '¡listo!' : 'faltan ' + d.falta + '%'}</span></div>` +
       `<div class="fila"><span><span class="mas">+${fmt(d.mas)}</span> <span class="menos">−${fmt(d.menos)}</span></span><span class="falta">${d.commits} c</span></div>` +
-      `<div class="fase">${ICONO[d.modo] ?? ''} ${esc(d.fase)}</div>`;
+      `<div class="fase">${ICONO[d.modo] ?? ''} ${esc(d.fase)}</div>` +
+      `<div class="act${d.atascado ? ' dormido' : ''}">${d.pruebas ? '⚙ pruebas · ' : '🕒 '}${hace(d.actividad)}</div>`;
+  });
+  agentes.forEach((a, i) => {
+    const cx = ESCRITORIOS[i], d = a.dato;
+    const prueba = extra('globo-prueba-' + i, 'globo prueba', cx - 30, 113);
+    prueba.textContent = '⚙ Ejecutando pruebas…';
+    prueba.classList.toggle('ver', Boolean(d?.pruebas && !d.atascado));
+    const rojo = extra('rojo-' + i, 'rojo', cx - 31, 214, 62);
+    rojo.textContent = `¿Atascado? ${duracion(d?.inactivoMin ?? 0)} sin actividad`;
+    rojo.classList.toggle('ver', Boolean(d?.atascado));
+    extra('globo-rev-' + i, 'globo', cx + 18, 185).textContent = '🔍 Revisando…';
   });
   const jefeEl = cartel('cartel-jefe', 8, 122);
   jefeEl.style.setProperty('--modo', '#d4a64a');
@@ -627,7 +741,7 @@ function pintarCarteles() {
     (cer.ok === false ? `<div class="sinconex">⚠ Azure sin conexión${cer.at ? ' · dato de las ' + hora(cer.at) : ''}</div>` : '');
   const sala = cartel('cartel-sala', 506, 128);
   sala.style.setProperty('--modo', '#6b4630');
-  const libres = agentes.filter((a) => a.dato && !EN_ESCRITORIO.has(a.dato.modo));
+  const libres = agentes.filter((a) => a.dato && !alEscritorio(a.dato));
   sala.innerHTML = `<div class="cab">☕ SALA DEL TINTO</div><div style="margin-top:3px">${libres.length ? libres.map((a) => `<span style="color:${oscuro(a.aspecto.camisa, .8)};font-weight:bold">■</span> ${esc(a.dato.nombre)}${a.dato.done ? ' ✔' : a.dato.ticket ? ` <span class="falta">#${a.dato.ticket} ${a.dato.pct}%</span>` : ''}`).join('<br>') : 'Vacía: todos están trabajando 💪'}</div>`;
 }
 
@@ -638,6 +752,8 @@ function frasesDelJefe() {
   const f = [];
   if (!estado) return ['Cargando…'];
   const ag = estado.agentes ?? [];
+  for (const a of ag.filter((x) => x.atascado)) f.push(`#${a.ticket} lleva ${duracion(a.inactivoMin ?? 0)} quieto. ¿Se durmió? 😴`);
+  for (const a of ag.filter((x) => x.pruebas)) f.push(`Corriendo pruebas en #${a.ticket}… crucemos los dedos 🤞`);
   for (const a of ag.filter((x) => x.modo === 'bloqueado')) f.push(`#${a.ticket}: ${a.fase.toLowerCase()}. Ya lo miro.`);
   for (const a of ag.filter((x) => x.modo === 'revisando')) f.push(`A ver esa revisión de #${a.ticket}…`);
   for (const a of ag.filter((x) => x.modo === 'esperando')) f.push(`#${a.ticket} está LISTO. ¡Que pase el reviewer!`);
@@ -698,6 +814,8 @@ async function traer() {
     estado = await r.json();
     agentes.forEach((a, i) => { a.dato = estado.agentes?.[i] ?? null; });
     repartir();
+    agentes.forEach((a, i) => revisorA(i, a.dato?.modo === 'revisando' && !a.dato.atascado));
+    primeraCarga = false;
     pintarCarteles();
     document.getElementById('cerrados').textContent = estado.cerradosHoy ?? 0;
     document.getElementById('aqa').textContent = estado.enQaHoy ?? 0;
@@ -748,9 +866,9 @@ function cuadro(t) {
   jefe(t);
   agentes.forEach((a, i) => {
     const cx = ESCRITORIOS[i];
-    const sentado = a.pose === 'escritorio' && a.dato && EN_ESCRITORIO.has(a.dato.modo);
-    const modo = a.dato?.modo;
-    const pant = !sentado ? 'apagada' : modo === 'revisando' ? 'diff' : modo === 'esperando' ? 'ok' : modo === 'bloqueado' ? 'duda' : 'codigo';
+    const sentado = a.pose === 'escritorio' && alEscritorio(a.dato);
+    const modo = a.dato?.atascado ? 'dormido' : a.dato?.pruebas ? 'pruebas' : a.dato?.modo;
+    const pant = !sentado || modo === 'dormido' ? 'apagada' : modo === 'pruebas' ? 'pruebas' : modo === 'revisando' ? 'diff' : modo === 'esperando' ? 'ok' : modo === 'bloqueado' ? 'duda' : 'codigo';
     const tecleando = sentado && modo === 'trabajando' && (t / 1000 + a.n * 3.1) % 9 >= 1.1;
     pantalla(i, cx, pant, t, tecleando);
     if (sentado) deEspaldas(cx, a.aspecto, modo, t, a.n);
@@ -758,14 +876,20 @@ function cuadro(t) {
   });
   const enSofa = agentes.filter((a) => a.pose === 'sofa');
   for (const a of enSofa) deFrente(SOFA[a.destino.k].x, SOFA_Y, a.aspecto, 'sofa', t, a.n, a.n % 2 ? 'dormir' : 'celular');
-  const dePie = agentes.filter((a) => a.pose === 'cafe' || a.pose === 'camina').sort((p, q) => p.y - q.y);
-  for (const a of dePie) deFrente(a.x, a.y, a.aspecto, a.pose, t, a.n, a.pose === 'cafe' ? 'tinto' : null);
+  const dePie = [
+    ...agentes.filter((a) => a.pose === 'cafe' || a.pose === 'camina')
+      .map((a) => ({ y: a.y, pintar: () => deFrente(a.x, a.y, a.aspecto, a.pose, t, a.n, a.pose === 'cafe' ? 'tinto' : null) })),
+    ...revisores.map((r, i) => ({ r, i })).filter(({ r }) => r.estado !== 'fuera')
+      .map(({ r, i }) => ({ y: r.y, pintar: () => deFrente(r.x, r.y, REVISOR, r.estado === 'ahi' ? 'pie' : 'camina', t, 7 + i, r.estado === 'ahi' ? 'lupa' : null) })),
+  ].sort((p, q) => p.y - q.y);
+  for (const p of dePie) p.pintar();
+  revisores.forEach((r, i) => document.getElementById('globo-rev-' + i)?.classList.toggle('ver', r.estado === 'ahi' && Math.floor(t / 4000 + i) % 3 !== 2));
   // luz de la noche
   if (c.fase !== 'dia') {
     ctx.fillStyle = c.fase === 'noche' ? 'rgba(25,15,55,.22)' : 'rgba(120,50,40,.10)'; ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
     agentes.forEach((a, i) => {
-      if (a.pose === 'escritorio' && a.dato && EN_ESCRITORIO.has(a.dato.modo)) halo(ESCRITORIOS[i], 152, 30, 'rgba(90,150,210,.16)');
+      if (a.pose === 'escritorio' && alEscritorio(a.dato) && !a.dato.atascado) halo(ESCRITORIOS[i], 152, 30, 'rgba(90,150,210,.16)');
     });
     halo(ESCRITORIOS[2] + 22, 162, 16, 'rgba(255,190,90,.18)');
     halo(519, 126, 14, 'rgba(255,120,110,.10)');
