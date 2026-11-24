@@ -39,7 +39,7 @@ export function memoriaDisponible(total = totalmem(), libre = freemem()): number
 
 export function capacidad(max: number, libre = memoriaDisponible(), total = totalmem()) {
   const gb = (bytes: number) => Math.round((bytes / 1024 ** 3) * 10) / 10;
-  const cupo = Math.max(1, Math.min(max, Math.floor((gb(libre) - 3) / 1.2)));
+  const cupo = Math.max(1, Math.min(max, Math.floor((gb(libre) - 5) / 2)));
   return { libreGb: gb(libre), totalGb: gb(total), cupo };
 }
 

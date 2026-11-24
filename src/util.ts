@@ -165,6 +165,18 @@ export function entornoLimpio(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv 
   for (const key of Object.keys(env)) {
     if (key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_')) delete env[key];
   }
+  // Tope de memoria de cada proceso Node que lance un worker (pruebas, lint, tsc, vite, nest…): sin él, V8 crece
+  // hasta ~4 GB por proceso en una máquina de 16 GB. `ORQ_NODE_HEAP_MB=0` lo desactiva.
+  const heapMb = Number(process.env.ORQ_NODE_HEAP_MB ?? 2048);
+  if (heapMb > 0 && !/--max-old-space-size/.test(env.NODE_OPTIONS ?? '')) {
+    env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --max-old-space-size=${heapMb}`.trim();
+  }
+  // Menos procesos en paralelo dentro de cada ticket (vitest y compiladores respetan estas variables).
+  const hilos = String(process.env.ORQ_HILOS ?? 2);
+  env.VITEST_MAX_THREADS ??= hilos;
+  env.VITEST_MAX_FORKS ??= hilos;
+  env.VITEST_MAX_WORKERS ??= hilos;
+  env.UV_THREADPOOL_SIZE ??= '4';
   return env;
 }
 

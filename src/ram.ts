@@ -1,5 +1,5 @@
 /**
- * Tope de RAM de toda la máquina (no solo de los agentes): el equipo no debe pasar de `ORQ_RAM_MAX_GB` (15 por
+ * Tope de RAM de toda la máquina (no solo de los agentes): el equipo no debe pasar de `ORQ_RAM_MAX_GB` (11 por
  * defecto) ni empezar a usar swap. Antes de lanzar un worker se espera a que quepa; el vigía
  * (`orq.ts vigia-ram`) apaga el worker de menor prioridad si el uso se pasa del tope.
  */
@@ -8,9 +8,9 @@ import { freemem, totalmem } from 'node:os';
 
 import { log } from './util.ts';
 
-export const RAM_MAX_GB = Number(process.env.ORQ_RAM_MAX_GB ?? 15);
+export const RAM_MAX_GB = Number(process.env.ORQ_RAM_MAX_GB ?? 11);
 /** Lo que suma un worker nuevo en su pico (pruebas, lint y compilación). */
-export const MARGEN_WORKER_GB = Number(process.env.ORQ_RAM_MARGEN_GB ?? 1.5);
+export const MARGEN_WORKER_GB = Number(process.env.ORQ_RAM_MARGEN_GB ?? 2);
 
 const GB = 1024 ** 3;
 
