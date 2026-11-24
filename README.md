@@ -105,6 +105,7 @@ node orquestador/orq.ts pr 84 --probado                        # tras tu /qa-ok
   motor de la cadena.
 - **`escalarFuerteTras`** (por defecto 3) y **`motorFuerte`** (por defecto `claude:opus:medium`): un bucle de vueltas suele ser falta de capacidad. Tras tantas vueltas sin aprobar, el implementer deja la cadena de su talla y empieza en el motor fuerte; si ese falla, sigue la cadena.
 - **`entorno`** (por repo): variables de entorno que se le pasan al worker de ese repo; `{workspace}` es la carpeta del equipo. El front la usa para `OPENAPI_PATH` (`{workspace}/corco.back/openapi/openapi.json`) y así `pnpm api:types` funciona desde su carpeta de ticket.
+- **Reviewer de otra familia:** al lanzar el reviewer, los motores de la misma familia que el último implementer (`claude`, `gpt` de Codex o `gemini`; el Claude que corre dentro de agy cuenta como `claude`) pasan al final de la cadena. Solo se usan si los demás no tienen cuota o no están instalados. `--motor` lo salta.
 - `local.json` (sin versionar) guarda tu nombre para `qa/<nombre>`.
 
 La talla y los repos de un ticket salen de sus etiquetas en Azure. Si no las tiene, `start <id> --repo …` los fija.

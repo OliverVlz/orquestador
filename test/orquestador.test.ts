@@ -354,3 +354,12 @@ describe('perfiles de motores', () => {
     assert.match(renderMotoresMd(res, 'nota', '2026-11-19'), /2026-11-19/);
   });
 });
+
+import { familiaDe, sinFamiliaPrimero, parseSpec as _ps } from '../src/config.ts';
+it('el reviewer va de otra familia que el implementer', () => {
+  const cadena = ['claude:sonnet:medium', 'codex:gpt-6-sol:medium', 'agy:gemini-4-argon-low', 'agy:claude-sonnet-5-5-medium'].map(_ps);
+  assert.equal(familiaDe(_ps('agy:claude-sonnet-5-5-medium')), 'claude');
+  assert.equal(familiaDe(_ps('agy:gemini-4-argon-low')), 'gemini');
+  assert.deepEqual(sinFamiliaPrimero(cadena, 'claude').map((s) => s.texto), ['codex:gpt-6-sol:medium', 'agy:gemini-4-argon-low', 'claude:sonnet:medium', 'agy:claude-sonnet-5-5-medium']);
+  assert.deepEqual(sinFamiliaPrimero(cadena, 'gpt').map((s) => s.texto)[0], 'claude:sonnet:medium');
+});

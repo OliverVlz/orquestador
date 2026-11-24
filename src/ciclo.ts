@@ -20,6 +20,8 @@ import {
 import {
   WORKSPACE,
   escalarTras,
+  familiaDe,
+  sinFamiliaPrimero,
   parseSpec,
   personaDe,
   tituloDePr,
@@ -307,6 +309,17 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
     ...otrosRepos(p, meta, repo).map((o) => o.dir),
     ...flagText(flags, 'dir').split(',').map((d) => d.trim()).filter(Boolean),
   ];
+  // El reviewer va de otra familia que el implementer (otro punto de vista); la misma queda solo de respaldo si no hay cuota.
+  if (rol === 'reviewer' && !flagText(flags, 'motor')) {
+    const ultimo = readHistory().filter((e) => e.id === id && e.repo === repo.dir && e.event === 'trabajo' && e.rol === 'implementer' && e.resultado === 'LISTO').at(-1);
+    if (ultimo?.motor) {
+      const fam = familiaDe(parseSpec(ultimo.motor));
+      const antes = specs[0]?.texto;
+      specs = sinFamiliaPrimero(specs, fam);
+      if (specs[0]?.texto !== antes) log(`Reviewer de otra familia que el implementer (${fam}): empieza en ${specs[0].texto}.`);
+    }
+  }
+
   const intentos: string[] = [];
   for (const spec of specs) {
     const motor = motorPorNombre(spec.motor);

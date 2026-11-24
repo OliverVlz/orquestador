@@ -197,5 +197,20 @@ export function cadena(cfg: Config, rol: Rol, talla: string): MotorSpec[] {
   return (porTalla[talla] ?? porTalla['*']).map(parseSpec);
 }
 
+/**
+ * La familia de modelo de un motor: `claude` (también el Claude que corre dentro de agy), `gpt` (Codex) o `gemini`.
+ * Sirve para que el reviewer no sea de la misma familia que quien implementó.
+ */
+export function familiaDe(spec: Pick<MotorSpec, 'motor' | 'modelo'>): string {
+  if (spec.motor === 'agy') return /^claude/i.test(spec.modelo) ? 'claude' : /^gpt/i.test(spec.modelo) ? 'gpt' : 'gemini';
+  if (spec.motor === 'codex') return 'gpt';
+  return spec.motor === 'desktop' ? 'claude' : spec.motor;
+}
+
+/** Pasa al final los motores de la familia vetada; si no queda otra (sin cuota, no instalados), siguen ahí como respaldo. */
+export function sinFamiliaPrimero(specs: MotorSpec[], familia: string): MotorSpec[] {
+  return [...specs.filter((s) => familiaDe(s) !== familia), ...specs.filter((s) => familiaDe(s) === familia)];
+}
+
 export const escalarTras = (cfg: Config, talla: string): number =>
   cfg.escalarTras[talla] ?? cfg.escalarTras['*'] ?? 2;
