@@ -39,6 +39,10 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
   (`require('<carpeta del front>/node_modules/playwright')`, o el ayudante del workspace en
   `progress/qa-ia/navegador.cjs`).
 - Escribe pruebas para la lógica nueva.
+- **Al corregir un bloqueante, arregla la causa, no solo el sitio que señala la revisión.** Busca en el repo
+  (`rg`) todos los lugares con el mismo patrón o que llegan al mismo defecto por otro camino, y corrígelos
+  en esta misma vuelta. Si el reviewer vuelve a encontrar el mismo defecto en otro lugar, es una vuelta perdida.
+  Lista en «Decisiones» qué otros sitios revisaste y cuáles tocaste.
 - No instales dependencias nuevas salvo que el ticket lo pida.
 - `.env` se puede leer para entender la configuración, pero **nunca** copies un valor al informe, a
   un commit ni a un comentario. Toda variable nueva o cambiada va en `.env.example`, con su valor por

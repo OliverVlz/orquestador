@@ -97,7 +97,18 @@ export function baseRef(repo: RepoCfg, base: string): string {
   return remote.status === 0 ? `origin/${base}` : base;
 }
 
-export const dirtyIn = (dir: string): boolean => git(['status', '--porcelain'], dir).stdout.trim() !== '';
+/**
+ * ¿Hay cambios sin confirmar? En Windows (autocrlf) un archivo reescrito con otros saltos de línea y el mismo
+ * contenido sale como modificado en `status` sin cambiar nada. Si lo único que hay son archivos modificados
+ * (` M`: sin staged, sin archivos nuevos ni conflictos) y su diff ignorando el fin de línea está vacío, no cuenta.
+ * Solo lee: no toca archivos ni el índice.
+ */
+export const dirtyIn = (dir: string): boolean => {
+  const lines = git(['status', '--porcelain'], dir).stdout.split('\n').filter((l) => l.trim() !== '');
+  if (lines.length === 0) return false;
+  if (!lines.every((l) => l.startsWith(' M'))) return true;
+  return git(['diff', '--ignore-cr-at-eol', '--quiet'], dir, { allowFail: true }).status !== 0;
+};
 
 export const shortHead = (dir: string, ref = 'HEAD'): string => git(['rev-parse', '--short', ref], dir).stdout.trim();
 

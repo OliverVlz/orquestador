@@ -4,7 +4,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   approvePr,
   createPr,
@@ -278,10 +278,21 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
     const skip = rol === 'implementer' ? Math.floor(rondasDeCambios(readHistory(), id, repo.dir) / escalarTras(cfg, meta.talla)) : 0;
     specs = chain.slice(Math.min(skip, chain.length - 1));
     if (skip > 0) log(`Escalado: ${skip} vuelta(s) sin aprobar → empieza en ${specs[0].texto}.`);
+    // Un bucle de vueltas suele ser falta de capacidad: tras `escalarFuerteTras` salta al motor fuerte y, si falla, sigue la cadena.
+    const vueltas = rol === 'implementer' ? rondasDeCambios(readHistory(), id, repo.dir) : 0;
+    if (vueltas >= cfg.escalarFuerteTras) {
+      const fuerte = parseSpec(cfg.motorFuerte);
+      specs = [fuerte, ...specs.filter((s) => s.texto !== fuerte.texto)];
+      log(`Bucle: ${vueltas} vueltas sin aprobar → empieza en el motor fuerte ${fuerte.texto}.`);
+    }
   }
 
+  // Un worktree guarda su índice y sus refs fuera de su carpeta (`.git/worktrees/<id>` y el `.git` común): sin
+  // escritura ahí el worker no puede ni `git add` ni `git commit`.
+  const dirsGit = [...new Set(['--git-dir', '--git-common-dir'].map((a) => resolve(cwd, git(['rev-parse', a], cwd).stdout.trim())))];
   const dirsExtra = [
     work,
+    ...dirsGit,
     ...otrosRepos(p, meta, repo).map((o) => o.dir),
     ...flagText(flags, 'dir').split(',').map((d) => d.trim()).filter(Boolean),
   ];

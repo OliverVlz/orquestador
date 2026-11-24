@@ -103,6 +103,7 @@ node orquestador/orq.ts pr 84 --probado                        # tras tu /qa-ok
   entra el siguiente.
 - **`escalarTras`**: cuántas vueltas sin aprobar (CAMBIOS o verificación fallida) antes de subir al siguiente
   motor de la cadena.
+- **`escalarFuerteTras`** (por defecto 3) y **`motorFuerte`** (por defecto `claude:opus:medium`): un bucle de vueltas suele ser falta de capacidad. Tras tantas vueltas sin aprobar, el implementer deja la cadena de su talla y empieza en el motor fuerte; si ese falla, sigue la cadena.
 - `local.json` (sin versionar) guarda tu nombre para `qa/<nombre>`.
 
 La talla y los repos de un ticket salen de sus etiquetas en Azure. Si no las tiene, `start <id> --repo …` los fija.

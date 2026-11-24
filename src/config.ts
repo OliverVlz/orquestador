@@ -52,6 +52,10 @@ export type Config = {
   proyectos: ProyectoCfg[];
   motores: Record<Rol, Record<string, string[]>>;
   escalarTras: Record<string, number>;
+  /** Tras tantas vueltas sin aprobar, el implementer salta al motor fuerte (más capaz que la cadena de su talla). */
+  escalarFuerteTras: number;
+  /** Motor `motor:modelo[:esfuerzo]` al que se salta tras `escalarFuerteTras` vueltas. */
+  motorFuerte: string;
   /** Tu nombre para la rama de pruebas qa/<nombre> (local.json). */
   qa: string | null;
   /** La marca del panel: nombre, sigla del monograma y, si hay, logos propios (rutas del workspace). */
@@ -134,6 +138,8 @@ export function parseConfig(raw: RawConfig, workspace = WORKSPACE, local: { qa?:
     firma: raw.firma ?? 'Orquestador',
     personas: raw.personas ?? [],
     escalarTras: { '*': 2, ...raw.escalarTras },
+    escalarFuerteTras: raw.escalarFuerteTras ?? 3,
+    motorFuerte: raw.motorFuerte ?? 'claude:opus:medium',
     proyectos,
     motores,
     qa,
