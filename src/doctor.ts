@@ -18,7 +18,7 @@ import { exec, fail, flagText, isDryRun, log, type Flags } from './util.ts';
 
 /**
  * Cuántos tickets aguanta la máquina a la vez. Cada ticket en curso corre pruebas y compilación en
- * su carpeta (≈ 1,5-2 GB en el pico); las IA corren en la nube. Se reservan ~3 GB para el resto.
+ * su carpeta (≈ 1,2 GB en el pico medido con la IA en la nube); las IA corren en la nube. Se reservan ~3 GB para el resto.
  */
 /**
  * En macOS `os.freemem()` solo cuenta las páginas vacías y deja fuera la memoria en caché que el sistema devuelve
@@ -39,7 +39,7 @@ export function memoriaDisponible(total = totalmem(), libre = freemem()): number
 
 export function capacidad(max: number, libre = memoriaDisponible(), total = totalmem()) {
   const gb = (bytes: number) => Math.round((bytes / 1024 ** 3) * 10) / 10;
-  const cupo = Math.max(1, Math.min(max, Math.floor((gb(libre) - 3) / 2)));
+  const cupo = Math.max(1, Math.min(max, Math.floor((gb(libre) - 3) / 1.2)));
   return { libreGb: gb(libre), totalGb: gb(total), cupo };
 }
 
