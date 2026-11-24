@@ -5,6 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { esperarMemoria } from './ram.ts';
 import {
   approvePr,
   createPr,
@@ -400,6 +401,7 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
       const prompt = renderRol(rol, vars) + nota;
       const headBefore = shortHead(cwd);
       const started = Date.now();
+      if (!isDryRun()) esperarMemoria();
       log(`→ ${rol} de #${id} en ${repo.dir} con ${spec.texto} (intento ${n})…`);
       if (isDryRun()) {
         log(`[dry-run] ${spec.texto} en ${cwd} · prompt ${rel(promptFile)}`);
