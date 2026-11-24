@@ -49,10 +49,10 @@ cierra con Ctrl+C.
 
 - **Revisión**: con el ticket en revisión, llega un revisor desde la puerta del jefe con lupa y portapapeles y se
   para al lado del agente («Revisando…»).
-- **Pruebas corriendo** (engranaje y «Ejecutando pruebas…»): un proceso `node` con la carpeta del ticket en su
-  línea de comando que parece una prueba o verificación (jest, vitest, eslint, tsc, prettier, verify…), leído cada
-  15 s (`Get-CimInstance Win32_Process` en Windows, `ps` en el resto), o un artefacto de pruebas tocado en los
-  últimos 2 minutos (`coverage/`, `junit.xml`, `test-results/`, `node_modules/.vite`, `.eslintcache`…).
+- **Tests corriendo** (engranaje y «Ejecutando pruebas…»): solo ejecutores de tests (jest, vitest, playwright,
+  cypress, mocha o `node --test`, con sus workers) cuya línea de comando lleva la carpeta del ticket **y** que
+  gastaron CPU desde la lectura anterior. Se leen cada 15 s (`Get-CimInstance Win32_Process` en Windows, `ps` en el
+  resto). Lint, prettier, tsc o build no cuentan, ni un test huérfano o colgado que sigue vivo pero quieto.
 - **Última actividad** («hace 3 min» en el cartel): el cambio más reciente en `progress/tickets/<id>/` y en la
   carpeta del ticket (último commit, índice de git, archivos cambiados o nuevos, artefactos de pruebas).
 - **¿Atascado?**: más de 20 minutos sin actividad ni pruebas, con el ticket aún en manos del agente (antes de
