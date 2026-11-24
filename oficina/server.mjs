@@ -161,15 +161,18 @@ const ESTADO_RE = /^ESTADO:\s*([A-ZÁÉÍÓÚ_]+)(.*)$/m;
 
 /* ------------------------------------------------------------------ actividad, pruebas y atascos */
 
-// Lo que escriben las pruebas y verificaciones al correr (jest, vitest, tsc, eslint, playwright…).
+// Salidas de las pruebas: cuentan como actividad del ticket (no como «pruebas corriendo»).
 const ARTEFACTOS_PRUEBA = [
   'coverage', 'coverage/lcov.info', 'coverage/coverage-final.json', 'coverage/coverage-summary.json',
-  'junit.xml', 'reports', 'test-results', 'playwright-report', '.eslintcache', 'tsconfig.tsbuildinfo',
-  'node_modules/.vite', 'node_modules/.vitest', 'node_modules/.cache', 'node_modules/.tmp',
+  'junit.xml', 'test-results', 'playwright-report', 'node_modules/.vitest',
 ];
-const PRUEBAS_MS = 2 * 60_000;
 const ATASCADO_MS = 20 * 60_000;
-const PRUEBA_RE = /\b(jest|vitest|playwright|cypress|mocha|verify|tests?|tsc|eslint|lint|typecheck|prettier|build)\b/i;
+// Solo ejecutores de tests: lint, prettier, tsc o build no son pruebas. Incluye los workers de jest
+// (…\jest-worker\build\processChild.js) y vitest, que son los que de verdad gastan CPU.
+const TEST_RE = /\b(jest|vitest|playwright|cypress|mocha)\b|\s--test\b/i;
+// Un test corre si sus procesos gastaron al menos esto de CPU entre dos lecturas: un proceso huérfano o colgado
+// sigue vivo pero quieto, y no cuenta.
+const CPU_MIN_S = 0.5;
 
 function mtimeRecursivo(dir, profundidad = 3) {
   let max = 0;
@@ -183,28 +186,50 @@ function mtimeRecursivo(dir, profundidad = 3) {
   return max;
 }
 
-// Líneas de comando de los procesos node, cada 15 s: una prueba corriendo en un worktree lleva su ruta
-// (…\worktrees\back\366\node_modules\jest\bin\jest.js).
-let procesos = [];
+// Procesos node cada 15 s con su CPU acumulada: un test corriendo en un worktree lleva su ruta en la línea de
+// comando (…\worktrees\back\366\node_modules\jest\bin\jest.js) y gasta CPU entre una lectura y la siguiente.
+let procesos = []; // { pid, cpuDelta (s, null en la primera lectura), cmd }
 let procesosAt = 0;
+const cpuPrevia = new Map();
+const segundosPs = (t) => {
+  const [dias, resto] = t.includes('-') ? t.split('-') : ['0', t];
+  return Number(dias) * 86_400 + resto.split(':').reduce((acc, x) => acc * 60 + Number(x), 0);
+};
 function leerProcesos() {
   if (Date.now() - procesosAt < 15_000) return;
   procesosAt = Date.now();
   const [exe, args] =
     process.platform === 'win32'
-      ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object { $_.CommandLine }`]]
-      : ['ps', ['-eo', 'args']];
+      ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+          `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object { '{0}|{1}|{2}' -f $_.ProcessId, ($_.UserModeTime + $_.KernelModeTime), $_.CommandLine }`]]
+      : ['ps', ['-eo', 'pid=,time=,args=']];
   execFile(exe, args, { encoding: 'buffer', timeout: 10_000, windowsHide: true, maxBuffer: 8 << 20 }, (err, stdout) => {
-    if (!err) procesos = decodificar(stdout).split(/\r?\n/).filter(Boolean);
+    if (err) return;
+    const vistos = new Map();
+    procesos = decodificar(stdout).split(/\r?\n/).filter(Boolean).flatMap((linea) => {
+      let pid, cpu, cmd;
+      if (process.platform === 'win32') {
+        const m = /^(\d+)\|(\d*)\|(.*)$/.exec(linea);
+        if (!m) return [];
+        [pid, cpu, cmd] = [m[1], Number(m[2] || 0) / 1e7, m[3]];
+      } else {
+        const m = /^\s*(\d+)\s+(\S+)\s+(.*)$/.exec(linea);
+        if (!m) return [];
+        [pid, cpu, cmd] = [m[1], segundosPs(m[2]), m[3]];
+      }
+      vistos.set(pid, cpu);
+      return [{ pid, cpuDelta: cpuPrevia.has(pid) ? cpu - cpuPrevia.get(pid) : null, cmd }];
+    });
+    cpuPrevia.clear();
+    for (const [pid, cpu] of vistos) cpuPrevia.set(pid, cpu);
   });
 }
 const normalizar = (s) => s.toLowerCase().replace(/\//g, '\\');
 
-/** Último cambio en la carpeta del ticket (worktree y progress/tickets/<id>/) y si hay pruebas corriendo en ella. */
+/** Último cambio en la carpeta del ticket (worktree y progress/tickets/<id>/) y si hay tests corriendo en ella. */
 async function actividadDe(tdir, wt) {
   let ultima = mtimeRecursivo(tdir);
-  let artefactos = 0;
-  let proceso = false;
+  let pruebas = false;
   if (existsSync(wt)) {
     const [gitDir, cambiados, nuevos, ct] = await Promise.all([
       git(['rev-parse', '--absolute-git-dir'], wt),
@@ -216,17 +241,19 @@ async function actividadDe(tdir, wt) {
     if (gitDir) ultima = Math.max(ultima, mtime(join(gitDir, 'index')), mtime(join(gitDir, 'logs', 'HEAD')));
     for (const f of [...(cambiados ?? '').split('\n'), ...(nuevos ?? '').split('\n')].filter(Boolean).slice(0, 400))
       ultima = Math.max(ultima, mtime(join(wt, f)));
-    artefactos = Math.max(0, ...ARTEFACTOS_PRUEBA.map((a) => mtime(join(wt, a))));
-    ultima = Math.max(ultima, artefactos);
+    ultima = Math.max(ultima, ...ARTEFACTOS_PRUEBA.map((a) => mtime(join(wt, a))));
     const carpeta = normalizar(wt) + '\\';
-    proceso = procesos.some((l) => normalizar(l).includes(carpeta) && PRUEBA_RE.test(l));
+    const cpu = procesos
+      .filter((p) => p.cpuDelta !== null && normalizar(p.cmd).includes(carpeta) && TEST_RE.test(p.cmd))
+      .reduce((total, p) => total + p.cpuDelta, 0);
+    pruebas = cpu >= CPU_MIN_S;
+    if (pruebas) ultima = Date.now();
   }
   const ahora = Date.now();
   return {
     actividad: ultima ? new Date(ultima).toISOString() : null,
     inactivoMin: ultima ? Math.max(0, Math.floor((ahora - ultima) / 60_000)) : null,
-    pruebas: proceso || ahora - artefactos < PRUEBAS_MS,
-    pruebasPor: proceso ? 'proceso' : ahora - artefactos < PRUEBAS_MS ? 'archivos' : null,
+    pruebas,
     inactivo: ultima > 0 && ahora - ultima > ATASCADO_MS,
   };
 }
