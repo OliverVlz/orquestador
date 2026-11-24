@@ -224,6 +224,18 @@ function leerProcesos() {
     for (const [pid, cpu] of vistos) cpuPrevia.set(pid, cpu);
   });
 }
+// Workers vivos: procesos `orq.ts trabajar <id> …` (el coordinador los lanza así, con cualquier motor).
+const trabajadoresVivos = () => {
+  const vivos = new Map(); // id → rol ('reviewer' gana si hay dos)
+  for (const p of procesos) {
+    const m = /orq\.ts\s+trabajar\s+(\d+)/.exec(p.cmd);
+    if (!m) continue;
+    const rol = /--rol\s+reviewer/.test(p.cmd) ? 'reviewer' : 'implementer';
+    const id = Number(m[1]);
+    if (vivos.get(id) !== 'reviewer') vivos.set(id, rol);
+  }
+  return vivos;
+};
 const normalizar = (s) => s.toLowerCase().replace(/\//g, '\\');
 
 /** Último cambio en la carpeta del ticket (worktree y progress/tickets/<id>/) y si hay tests corriendo en ella. */
@@ -263,9 +275,17 @@ async function faseDe(id, repo, cfg, eventos) {
   const tdir = join(PROGRESS, 'tickets', String(id));
   const wt = join(RAIZ, 'worktrees', cfg.repos.get(repo)?.grupo ?? repo, String(id));
   const { inactivo, ...act } = await actividadDe(tdir, wt);
+  const rolVivo = trabajadoresVivos().get(id) ?? null;
+  const vivo = rolVivo !== null;
+  // Un reviewer vivo es otro proceso: el ticket se ve «En revisión» (aparece el revisor junto al escritorio).
+  if (rolVivo === 'reviewer' && !fase.done && fase.modo !== 'libre')
+    return { ...fase, ...act, pct: Math.max(fase.pct, 65), fase: 'En revisión', modo: 'revisando', vivo, rolVivo, atascado: false };
+  // «Trabajando» solo con un worker vivo o pruebas corriendo; sin eso el ticket está detenido (p. ej. tras un reinicio).
+  if (['trabajando', 'revisando'].includes(fase.modo) && !vivo && !act.pruebas)
+    return { ...fase, ...act, modo: 'detenido', fase: `Detenido · ${fase.fase}`, vivo, atascado: false };
   // Atascado: sin cambios en 20 min, sin pruebas corriendo y con el trabajo aún en manos del agente (antes de
   // aprobado). Lo aprobado o en QA espera a una persona, no al agente.
-  return { ...fase, ...act, atascado: inactivo && !act.pruebas && !fase.done && fase.pct < 75 };
+  return { ...fase, ...act, vivo, atascado: inactivo && !act.pruebas && !fase.done && fase.pct < 75 };
 }
 
 async function faseBase(id, repo, cfg, eventos) {
@@ -387,7 +407,18 @@ async function calcular() {
   const cfg = config();
   const eventos = historial();
   const asignacion = leerJson(join(PROGRESS, 'oficina', 'agentes.json'));
-  const lista = (asignacion?.agentes ?? agentesAutomaticos(cfg, eventos)).slice(0, MAX_AGENTES);
+  let lista = (asignacion?.agentes ?? agentesAutomaticos(cfg, eventos)).slice(0, MAX_AGENTES);
+  if (asignacion) {
+    const vivos = trabajadoresVivos();
+    for (const id of vivos.keys()) {
+      if (lista.some((a) => Number(a.ticket) === id)) continue;
+      const repo = historial().findLast((e) => e.id === id && e.repo)?.repo;
+      const libre = lista.findIndex((a) => a.ticket == null || !vivos.has(Number(a.ticket)));
+      const nuevo = { nombre: `Agente ${libre < 0 ? lista.length + 1 : libre + 1}`, ticket: id, repo };
+      if (libre >= 0) lista[libre] = nuevo;
+      else if (lista.length < MAX_AGENTES) lista.push(nuevo);
+    }
+  }
   const agentes = await Promise.all(
     lista.map(async (a, i) => {
       const comun = { n: i + 1, nombre: a.nombre ?? `Agente ${i + 1}`, sesion: a.sesion ?? null, ticket: a.ticket ?? null, repo: a.repo ?? null };
