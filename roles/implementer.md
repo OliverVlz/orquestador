@@ -45,7 +45,9 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
   pantalla, levanta tu servidor con un comando en segundo plano y usa Playwright sin cabeza desde un script
   (`require('<carpeta del front>/node_modules/playwright')`, o el ayudante del workspace en
   `progress/qa-ia/navegador.cjs`).
-- Escribe pruebas para la lógica nueva.
+- Escribe pruebas para la lógica nueva. Cada regla de dominio, caso de uso, endpoint o pantalla nuevos lleva
+  pruebas unitarias de su camino feliz y de sus casos límite y de error (permisos, estados inválidos, datos
+  faltantes). Sigue las convenciones de pruebas del repo y no bajes la cobertura que exige su verificación.
 - **Al corregir un bloqueante, arregla la causa, no solo el sitio que señala la revisión.** Busca en el repo
   (`rg`) todos los lugares con el mismo patrón o que llegan al mismo defecto por otro camino, y corrígelos
   en esta misma vuelta. Si el reviewer vuelve a encontrar el mismo defecto en otro lugar, es una vuelta perdida.
@@ -95,6 +97,11 @@ Qué hiciste, en 3-6 líneas.
 - comando — pasa / falla (con la causa si falla)
 
 ## Cómo probarlo
+Si tu vuelta no cambia el comportamiento (solo merge con la rama base, contrato regenerado, ajuste de estilo),
+**conserva** la sección «Cómo probarlo» del informe anterior tal cual (léela de `{{INFORME}}` antes de
+reescribirlo) y añade una línea al final: «Esta vuelta no cambió el comportamiento.» Nunca la reemplaces por
+«sin cambios»: la guía de prueba sale de aquí y la persona no tendría qué probar.
+
 Para la persona que prueba en la rama de pruebas, sin jerga y en este orden:
 - Dónde: la URL de la pantalla (p. ej. http://localhost:5173/bandeja) o el endpoint con su método
   (p. ej. POST http://localhost:3000/api/v1/…), y con qué usuario o rol.
