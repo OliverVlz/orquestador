@@ -14,6 +14,8 @@ export type Trabajo = {
   esfuerzo: string | null;
   /** Carpetas fuera de cwd que el motor necesita leer o escribir (la del informe). */
   dirsExtra: string[];
+  /** Variables de entorno extra para el proceso del motor (las del repo, ver `entorno` en la config). */
+  env?: Record<string, string>;
 };
 
 export type Motor = {

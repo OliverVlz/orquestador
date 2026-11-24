@@ -26,6 +26,8 @@ export type RepoCfg = {
   url?: string;
   /** Secretos locales que `env --sync` genera al azar si están vacíos (nunca los de proveedores externos). */
   envGenerar?: string[];
+  /** Variables de entorno que se le pasan a los workers de este repo (`{workspace}` = la carpeta del equipo). Ej.: OPENAPI_PATH del front. */
+  entorno?: Record<string, string>;
   /** Subcarpeta de `worktrees/` donde van las carpetas de sus tickets: backend, frontend… (por defecto, `dir`). */
   worktrees: string;
   /** Ruta absoluta del checkout principal. */

@@ -88,7 +88,7 @@ export function correrMotor(
       cwd: trabajo.cwd,
       input: input ?? '',
       stdio: ['pipe', out, err],
-      env: entornoLimpio(),
+      env: entornoLimpio(trabajo.env),
       windowsHide: true,
       timeout: timeoutMin * 60_000,
     });

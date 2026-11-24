@@ -171,6 +171,11 @@ function otrosRepos(p: ProyectoCfg, meta: Meta, repo: RepoCfg): { repo: RepoCfg;
     .filter((o) => existsSync(o.dir));
 }
 
+/** Las variables de entorno del repo para su worker; `{workspace}` es la carpeta del equipo. */
+function entornoDe(repo: RepoCfg): Record<string, string> {
+  return Object.fromEntries(Object.entries(repo.entorno ?? {}).map(([k, v]) => [k, v.replaceAll('{workspace}', WORKSPACE.split(String.fromCharCode(92)).join('/'))]));
+}
+
 /** El bloque que avisa de los otros repos del proyecto (la API y los contratos del back para el front). Siempre va. */
 function contrato(p: ProyectoCfg, meta: Meta, repo: RepoCfg): string {
   const others = otrosRepos(p, meta, repo);
@@ -344,7 +349,7 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
         log(`[dry-run] ${spec.texto} en ${cwd} · prompt ${rel(promptFile)}`);
         return { rol, resultado: 'DRY_RUN', motor: spec.texto, informe: rel(informe), detalle: '' };
       }
-      const final = correrMotor(motor, { cwd, prompt, promptFile, modelo: spec.modelo, esfuerzo: spec.esfuerzo, dirsExtra: dirsExtra }, logBase);
+      const final = correrMotor(motor, { cwd, prompt, promptFile, modelo: spec.modelo, esfuerzo: spec.esfuerzo, dirsExtra: dirsExtra, env: entornoDe(repo) }, logBase);
       const res = rol === 'implementer' ? leerInformeImpl(informe, started) : leerDictamen(informe, started);
       if (res) return cerrar(res, spec.texto, headBefore);
       if (final.sinCuota) {
