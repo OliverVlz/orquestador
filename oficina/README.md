@@ -47,6 +47,17 @@ cierra con Ctrl+C.
   | En la rama de pruebas (`en-prueba`) | 92 |
   | Done (`aceptado` en el historial) | 100 |
 
+- **Revisión**: con el ticket en revisión, llega un revisor desde la puerta del jefe con lupa y portapapeles y se
+  para al lado del agente («Revisando…»).
+- **Pruebas corriendo** (engranaje y «Ejecutando pruebas…»): un proceso `node` con la carpeta del ticket en su
+  línea de comando que parece una prueba o verificación (jest, vitest, eslint, tsc, prettier, verify…), leído cada
+  15 s (`Get-CimInstance Win32_Process` en Windows, `ps` en el resto), o un artefacto de pruebas tocado en los
+  últimos 2 minutos (`coverage/`, `junit.xml`, `test-results/`, `node_modules/.vite`, `.eslintcache`…).
+- **Última actividad** («hace 3 min» en el cartel): el cambio más reciente en `progress/tickets/<id>/` y en la
+  carpeta del ticket (último commit, índice de git, archivos cambiados o nuevos, artefactos de pruebas).
+- **¿Atascado?**: más de 20 minutos sin actividad ni pruebas, con el ticket aún en manos del agente (antes de
+  aprobado). El agente se duerme con «zzz» y sale una etiqueta roja con el tiempo. Lo aprobado o en QA espera a
+  una persona, así que no cuenta.
 - **Líneas**: `git diff --shortstat origin/<ramaBase>...HEAD` en `worktrees/<grupo>/<id>`, más lo no confirmado
   (también los archivos nuevos). Un ticket apilado (`sobre.json`) se compara con la rama del otro ticket.
 - **Done hoy y semana**: `az boards query` (estado Done o Closed, `StateChangeDate >= @Today` y `@Today - 7`), cada

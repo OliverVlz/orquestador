@@ -159,7 +159,89 @@ const diaLocal = (d) => {
 
 const ESTADO_RE = /^ESTADO:\s*([A-ZÁÉÍÓÚ_]+)(.*)$/m;
 
+/* ------------------------------------------------------------------ actividad, pruebas y atascos */
+
+// Lo que escriben las pruebas y verificaciones al correr (jest, vitest, tsc, eslint, playwright…).
+const ARTEFACTOS_PRUEBA = [
+  'coverage', 'coverage/lcov.info', 'coverage/coverage-final.json', 'coverage/coverage-summary.json',
+  'junit.xml', 'reports', 'test-results', 'playwright-report', '.eslintcache', 'tsconfig.tsbuildinfo',
+  'node_modules/.vite', 'node_modules/.vitest', 'node_modules/.cache', 'node_modules/.tmp',
+];
+const PRUEBAS_MS = 2 * 60_000;
+const ATASCADO_MS = 20 * 60_000;
+const PRUEBA_RE = /\b(jest|vitest|playwright|cypress|mocha|verify|tests?|tsc|eslint|lint|typecheck|prettier|build)\b/i;
+
+function mtimeRecursivo(dir, profundidad = 3) {
+  let max = 0;
+  try {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const ruta = join(dir, e.name);
+      if (!e.isDirectory()) max = Math.max(max, mtime(ruta));
+      else if (profundidad > 0) max = Math.max(max, mtimeRecursivo(ruta, profundidad - 1));
+    }
+  } catch {}
+  return max;
+}
+
+// Líneas de comando de los procesos node, cada 15 s: una prueba corriendo en un worktree lleva su ruta
+// (…\worktrees\back\366\node_modules\jest\bin\jest.js).
+let procesos = [];
+let procesosAt = 0;
+function leerProcesos() {
+  if (Date.now() - procesosAt < 15_000) return;
+  procesosAt = Date.now();
+  const [exe, args] =
+    process.platform === 'win32'
+      ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object { $_.CommandLine }`]]
+      : ['ps', ['-eo', 'args']];
+  execFile(exe, args, { encoding: 'buffer', timeout: 10_000, windowsHide: true, maxBuffer: 8 << 20 }, (err, stdout) => {
+    if (!err) procesos = decodificar(stdout).split(/\r?\n/).filter(Boolean);
+  });
+}
+const normalizar = (s) => s.toLowerCase().replace(/\//g, '\\');
+
+/** Último cambio en la carpeta del ticket (worktree y progress/tickets/<id>/) y si hay pruebas corriendo en ella. */
+async function actividadDe(tdir, wt) {
+  let ultima = mtimeRecursivo(tdir);
+  let artefactos = 0;
+  let proceso = false;
+  if (existsSync(wt)) {
+    const [gitDir, cambiados, nuevos, ct] = await Promise.all([
+      git(['rev-parse', '--absolute-git-dir'], wt),
+      git(['diff', '--name-only', 'HEAD'], wt),
+      git(['ls-files', '--others', '--exclude-standard'], wt),
+      git(['log', '-1', '--format=%ct'], wt),
+    ]);
+    ultima = Math.max(ultima, Number(ct ?? 0) * 1000);
+    if (gitDir) ultima = Math.max(ultima, mtime(join(gitDir, 'index')), mtime(join(gitDir, 'logs', 'HEAD')));
+    for (const f of [...(cambiados ?? '').split('\n'), ...(nuevos ?? '').split('\n')].filter(Boolean).slice(0, 400))
+      ultima = Math.max(ultima, mtime(join(wt, f)));
+    artefactos = Math.max(0, ...ARTEFACTOS_PRUEBA.map((a) => mtime(join(wt, a))));
+    ultima = Math.max(ultima, artefactos);
+    const carpeta = normalizar(wt) + '\\';
+    proceso = procesos.some((l) => normalizar(l).includes(carpeta) && PRUEBA_RE.test(l));
+  }
+  const ahora = Date.now();
+  return {
+    actividad: ultima ? new Date(ultima).toISOString() : null,
+    inactivoMin: ultima ? Math.max(0, Math.floor((ahora - ultima) / 60_000)) : null,
+    pruebas: proceso || ahora - artefactos < PRUEBAS_MS,
+    pruebasPor: proceso ? 'proceso' : ahora - artefactos < PRUEBAS_MS ? 'archivos' : null,
+    inactivo: ultima > 0 && ahora - ultima > ATASCADO_MS,
+  };
+}
+
 async function faseDe(id, repo, cfg, eventos) {
+  const fase = await faseBase(id, repo, cfg, eventos);
+  const tdir = join(PROGRESS, 'tickets', String(id));
+  const wt = join(RAIZ, 'worktrees', cfg.repos.get(repo)?.grupo ?? repo, String(id));
+  const { inactivo, ...act } = await actividadDe(tdir, wt);
+  // Atascado: sin cambios en 20 min, sin pruebas corriendo y con el trabajo aún en manos del agente (antes de
+  // aprobado). Lo aprobado o en QA espera a una persona, no al agente.
+  return { ...fase, ...act, atascado: inactivo && !act.pruebas && !fase.done && fase.pct < 75 };
+}
+
+async function faseBase(id, repo, cfg, eventos) {
   const tdir = join(PROGRESS, 'tickets', String(id));
   const meta = leerJson(join(tdir, 'ticket.json')) ?? {};
   const titulo = String(meta.title ?? `Ticket ${id}`);
@@ -274,6 +356,7 @@ const ETIQUETA_EVENTO = {
 };
 
 async function calcular() {
+  leerProcesos();
   const cfg = config();
   const eventos = historial();
   const asignacion = leerJson(join(PROGRESS, 'oficina', 'agentes.json'));
