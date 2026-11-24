@@ -541,7 +541,7 @@ const ESTADOS = {
 const EVENTOS = { iniciado: 'Iniciado', 'en-prueba': 'Listo para probar', 'falló': 'Falló la prueba', aceptado: 'Aceptado', pregunta: 'Pregunta', respondido: 'Respondido', limpio: 'Carpeta borrada' };
 const TONO_EVENTO = { iniciado: 'neutro', 'en-prueba': 'info', 'falló': 'critico', aceptado: 'exito', pregunta: 'atencion', respondido: 'exito', limpio: 'neutro' };
 const RESULTADOS = {
-  LISTO: ['Implementado', 'exito'], APROBADO: ['Aprobado', 'exito'], CAMBIOS: ['Pidió cambios', 'atencion'],
+  LISTO: ['Implementado', 'exito'], APROBADO: ['Aprobado', 'exito'], CAMBIOS: ['Pidió cambios', 'atencion'], CONFLICTO: ['Conflicto con la base', 'atencion'],
   BLOQUEADO: ['Bloqueado', 'critico'], SIN_CUOTA: ['Sin cuota', 'atencion'], SIN_INFORME: ['Sin informe', 'critico'],
   VERIFICACION_FALLIDA: ['Verificación fallida', 'critico'], DESKTOP_PENDIENTE: ['En Claude Desktop', 'info'],
 };

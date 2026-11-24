@@ -28,6 +28,9 @@ export type RepoCfg = {
   envGenerar?: string[];
   /** Variables de entorno que se le pasan a los workers de este repo (`{workspace}` = la carpeta del equipo). Ej.: OPENAPI_PATH del front. */
   entorno?: Record<string, string>;
+  /** Archivos generados que no se resuelven a mano en un conflicto (p. ej. openapi/openapi.json) y el comando que los regenera. */
+  generados?: string[];
+  regenerar?: string;
   /** Subcarpeta de `worktrees/` donde van las carpetas de sus tickets: backend, frontend… (por defecto, `dir`). */
   worktrees: string;
   /** Ruta absoluta del checkout principal. */
@@ -56,6 +59,8 @@ export type Config = {
   escalarTras: Record<string, number>;
   /** Tras tantas vueltas sin aprobar, el implementer salta al motor fuerte (más capaz que la cadena de su talla). */
   escalarFuerteTras: number;
+  /** Desde cuántas vueltas de CAMBIOS se avisa de que el ticket quizá hay que partirlo. */
+  alertaVueltas: number;
   /** Motor `motor:modelo[:esfuerzo]` al que se salta tras `escalarFuerteTras` vueltas. */
   motorFuerte: string;
   /** Tu nombre para la rama de pruebas qa/<nombre> (local.json). */
@@ -141,6 +146,7 @@ export function parseConfig(raw: RawConfig, workspace = WORKSPACE, local: { qa?:
     personas: raw.personas ?? [],
     escalarTras: { '*': 2, ...raw.escalarTras },
     escalarFuerteTras: raw.escalarFuerteTras ?? 3,
+    alertaVueltas: raw.alertaVueltas ?? 3,
     motorFuerte: raw.motorFuerte ?? 'claude:opus:medium',
     proyectos,
     motores,

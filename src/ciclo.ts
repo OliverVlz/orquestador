@@ -65,6 +65,7 @@ import {
   unRepo,
   type Meta,
 } from './tickets.ts';
+import { revisionMecanica, sincronizarConBase, textoConflicto } from './sincronizar.ts';
 import { fail, flagText, isDryRun, log, readSection, type Flags } from './util.ts';
 
 /** Corre un comando del JSON del proyecto (instalar, verificar) en una carpeta, con la salida a la vista. */
@@ -282,6 +283,30 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
     }
     rmSync(pendiente);
     log('Sesión de Desktop pendiente descartada.');
+  }
+
+  // Antes de gastar un worker: la rama al día con su base y los chequeos que no necesitan juicio.
+  const sync = sincronizarConBase(repo, cwd, base, entornoDe(repo));
+  if (sync.estado !== 'al-dia' && sync.estado !== 'omitido') log(`Sincronía con ${base}: ${sync.detalle}.`);
+  const sinJuicio = (bloqueantes: string[], resultado: string, motivo: string): Resultado => {
+    writeFileSync(informe, `DICTAMEN: CAMBIOS\nVERIFICACIÓN: no corrida (${motivo}; el orquestador no lanzó al reviewer)\n\n## Bloqueantes\n${bloqueantes.map((b, i) => `${i + 1}. ${b}`).join('\n')}\n`);
+    record({ id, proyecto: p.nombre, repo: repo.dir, event: 'trabajo', rol, motor: 'orquestador', resultado });
+    const out = { rol, resultado: 'CAMBIOS', motor: 'orquestador', informe: rel(informe), detalle: `${motivo}: sin gastar reviewer` };
+    if (flags.json) log(JSON.stringify(out));
+    else log(`CAMBIOS -> orquestador · ${rel(informe)} · ${out.detalle}`);
+    return out;
+  };
+  if (rol === 'implementer' && sync.estado === 'conflicto') {
+    vars.CORRECCIONES += `\n## Conflicto con la base\n\n${textoConflicto(base, sync)}\n`;
+  }
+  if (rol === 'reviewer' && !isDryRun()) {
+    if (sync.estado === 'conflicto') return sinJuicio([textoConflicto(base, sync)], 'CONFLICTO', 'conflicto con la base');
+    const mecanicos = revisionMecanica(cwd, vars.IMPL);
+    if (mecanicos.length) return sinJuicio(mecanicos, 'CONFLICTO', 'chequeo mecánico');
+  }
+  if (rol === 'implementer') {
+    const vueltas = rondasDeCambios(readHistory(), id, repo.dir);
+    if (vueltas >= cfg.alertaVueltas) log(`⚠ ${vueltas} vueltas de CAMBIOS en #${id}: considera partir el ticket o revisar el plan antes de otra vuelta.`);
   }
 
   let specs: MotorSpec[];

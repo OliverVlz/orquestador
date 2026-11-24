@@ -118,6 +118,9 @@ del flujo) o a `.claude/settings.local.json` (si es de su PC) en vez de dejar qu
 2. `trabajar <id> --rol implementer [--repo <carpeta>]`. Corre largo: lánzalo en segundo plano y sigue con otro
    ticket. Responde una línea: `LISTO`, `BLOQUEADO (tipo) pregunta`.
 3. `trabajar <id> --rol reviewer [--repo <carpeta>]`: `APROBADO` o `CAMBIOS`.
+3b. Antes de cada vuelta `trabajar` deja la rama al día con su base (fusiona `origin/<base>`; si solo chocan los
+   `generados` del repo, los regenera). Un conflicto real o un informe sin «Cómo probarlo» devuelve `CAMBIOS` sin gastar
+   reviewer. Desde `alertaVueltas` vueltas avisa: parte el ticket o replanéalo en vez de seguir ciclando.
 4. `CAMBIOS` → otra vez `trabajar … --rol implementer` (recibe los bloqueantes solo). Tras las vueltas que diga
    `escalarTras`, el orquestador sube solo al siguiente motor de la cadena.
 5. `APROBADO` → `finish <id>` (verifica y etiqueta) y `qa <id>` (mezcla en la rama de pruebas). Un conflicto lo

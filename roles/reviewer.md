@@ -30,6 +30,10 @@ Eres el **reviewer** de un solo ticket. Lo lanzó el orquestador de `{{WORKSPACE
 6. **Verificación**: córrela tú en la carpeta, no te fíes del informe: `{{VERIFICAR}}`.
 7. **Mergeabilidad**: `git fetch origin` y `git merge-tree --write-tree {{BASE}} HEAD`.
 
+El orquestador ya comprobó, antes de lanzarte, que la rama está al día con `{{BASE}}` (o la fusionó él),
+que no hay cambios sin confirmar y que el informe trae «Cómo probarlo». No gastes tu revisión en eso: ve
+directo a corrección, criterios, reglas del repo y pruebas. Sí confirma el paso 7 si ves algo raro.
+
 Nunca pidas ni corras verificaciones destructivas (borrar volúmenes, recrear bases de datos, tocar
 datos). Si algo solo se comprueba así, escríbelo como «verificación manual pendiente».
 

@@ -20,6 +20,15 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
 2. Si el repo tiene skills (`.claude/skills/*/SKILL.md`) que apliquen a la tarea, léelas.
 3. Si el ticket o el repo citan un documento de diseño, respeta lo que ya decide.
 4. Mira cómo está resuelto algo parecido en el repo e imítalo.
+5. **Antes de crear una regla, servicio, DTO, error, constante o ayudante, busca si ya existe** en la rama
+   base (`rg` por el concepto y por el nombre, también en `git grep {{BASE}} -- <ruta>`: otros tickets entran
+   a la base mientras trabajas). Si existe, reutilízalo; no lo copies con otro nombre. Lista en «Decisiones»
+   lo que buscaste y lo que reutilizas.
+6. **Contrato y modelo, columna por columna.** Si el ticket toca la base de datos, la API o un contrato, abre el
+   modelo de datos y el contrato del módulo y comprueba, uno por uno: columnas y nulabilidad, CHECK, FK y su
+   `ON DELETE`, estados y transiciones, validaciones, códigos de error y status HTTP. Si algo no cuadra,
+   comenta el ticket y anótalo en «Fuera de alcance»: no lo inventes ni lo amplíes por tu cuenta. Los
+   endpoints que el back aún no tiene no se simulan ni se agregan al `openapi.json` a mano.
 
 ## Mientras trabajas
 
@@ -75,7 +84,12 @@ Escribe la pregunta concreta en `PREGUNTA:`. El orquestador la resuelve o se la 
 1. Si faltan dependencias: `{{INSTALAR}}`.
 2. Corre la verificación completa del repo, en tu carpeta: `{{VERIFICAR}}`.
 3. Si falla, arréglalo. Si no puedes, **no lo escondas**: dilo en el informe.
-4. Haz commit en tu rama (Conventional Commits en español, con `#{{ID}}` al final del título).
+4. **Comprueba tu «Cómo probarlo» contra el código, afirmación por afirmación**: cada URL, método, rol, status
+   HTTP, código de error, cantidad de migraciones o de pasos de `revert`, dato de prueba y mensaje que
+   prometas. Relee el controlador, el DTO y el error real; si un paso se puede ejecutar sin riesgo (llamar al
+   endpoint, correr la prueba), ejecútalo. Los datos de prueba no deben chocar con restricciones únicas ni con
+   lo que ya hay en la base. Una guía que engaña cuesta una vuelta completa.
+5. Haz commit en tu rama (Conventional Commits en español, con `#{{ID}}` al final del título).
    Varios commits pequeños están bien. **No hagas push.** No dejes cambios sin confirmar.
 
 ## Tu informe (obligatorio)
