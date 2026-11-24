@@ -67,6 +67,19 @@ nombre, sigla del monograma y, si los hay, `logo` / `logoOscuro` con rutas dentr
 Solo escucha en `127.0.0.1`, se actualiza al recargar (o con **Actualizar**) y lo cierras con Ctrl+C. Responder
 desde la página exige un token que solo tiene la página que sirvió el propio panel.
 
+## La oficina (pixel art)
+
+Para ver a los agentes trabajando en vivo, como una oficina retro: cada agente en su escritorio con el cartel de
+su ticket (fase, % de avance, líneas), el jefe orquestador en su oficina y los libres tomando tinto o en el sofá.
+Arriba, «Done hoy» y «Semana» en grande; con el botón ▾ se despliega cuáles son.
+
+```bash
+node orquestador/orq.ts oficina                 # http://localhost:4400 (--puerto N para otro)
+```
+
+No pide configuración: lee `progress/`, `worktrees/`, `orquestador.json` y `local.json`, y consulta Azure con tu
+sesión de `az` cada 5 minutos. Detalles en [`oficina/README.md`](oficina/README.md).
+
 ## El día a día
 
 Abre Claude Code (o Codex) en el workspace. Al arrancar, el coordinador revisa tus tickets asignados
