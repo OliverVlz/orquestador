@@ -4,7 +4,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   approvePr,
   createPr,
@@ -306,6 +306,9 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
   const dirsExtra = [
     work,
     ...dirsGit,
+    // La rama de pruebas del mismo repo (hermana de la carpeta del ticket): así el implementer puede resolver ahí un
+    // conflicto de `qa` sin quedar BLOQUEADO(ruta).
+    ...[resolve(dirname(work), 'qa')].filter((d) => existsSync(d)),
     ...otrosRepos(p, meta, repo).map((o) => o.dir),
     ...flagText(flags, 'dir').split(',').map((d) => d.trim()).filter(Boolean),
   ];
