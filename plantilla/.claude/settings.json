@@ -86,7 +86,20 @@
       "Edit(orquestador/**)",
       "Write(orquestador/**)",
       "Edit(worktrees/**)",
-      "Write(worktrees/**)"
+      "Write(worktrees/**)",
+      "Bash(node orquestador/orq.ts clean:*)",
+      "Bash(node orquestador/orq.ts motores --probar:*)",
+      "Bash(git rebase:*)",
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git worktree remove:*)",
+      "Bash(docker pull:*)",
+      "Bash(docker compose down:*)",
+      "Edit(.claude/**)",
+      "Write(.claude/**)",
+      "Edit(orquestador/plantilla/.claude/**)",
+      "Write(orquestador/plantilla/.claude/**)"
     ],
     "ask": [
       "Bash(az boards work-item delete:*)",
@@ -101,20 +114,7 @@
       "Bash(az pipelines variable-group delete:*)",
       "Bash(az devops project delete:*)",
       "Bash(az devops security:*)",
-      "Bash(az devops user:*)",
-      "Bash(node orquestador/orq.ts clean:*)",
-      "Bash(node orquestador/orq.ts motores --probar:*)",
-      "Bash(git rebase:*)",
-      "Bash(git restore:*)",
-      "Bash(git checkout:*)",
-      "Bash(git stash:*)",
-      "Bash(git worktree remove:*)",
-      "Bash(docker pull:*)",
-      "Bash(docker compose down:*)",
-      "Edit(.claude/**)",
-      "Write(.claude/**)",
-      "Edit(orquestador/plantilla/.claude/**)",
-      "Write(orquestador/plantilla/.claude/**)"
+      "Bash(az devops user:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
