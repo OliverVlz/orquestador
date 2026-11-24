@@ -205,6 +205,7 @@ export function cmdTrabajar(cfg: Config, id: number, flags: Flags): Resultado {
   const repo = unRepo(p, id, flags);
   const cwd = worktreePath(repo, id);
   if (!existsSync(cwd)) fail(`No existe ${cwd}: start ${id}`);
+  if (!existsSync(join(cwd, '.git'))) fail(`${cwd} existe pero ya no es un worktree (quedó solo lo que dejó clean, p. ej. node_modules): bórrala y corre start ${id} --repo ${repo.dir} para recrearlo sobre su rama.`);
   const work = repoWorkDir(id, repo);
   mkdirSync(work, { recursive: true });
   const branch = ticketBranch(repo, id);
