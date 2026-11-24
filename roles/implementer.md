@@ -33,6 +33,13 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
   edita el archivo (y los generados, como `openapi.json`, se regeneran con su script) y termina con
   `git add` + `git commit`. No uses `git checkout`, `git restore`, `git stash` ni `git rebase`: piden
   permiso a la persona y la dejan bloqueada.
+- **Conflictos en archivos generados** (`openapi/openapi.json`, `src/lib/api-types/schema.d.ts`): no leas ni
+  resuelvas el conflicto a mano. Resuelve primero los demás (`app.module.ts`, los `index.ts` de módulos: ahí
+  suelen quedar las dos líneas, una de cada lado). Luego toma la versión de la base
+  (`git show origin/<base>:<archivo> > <archivo>`, no `git checkout`) y **regenera** con el script del repo:
+  en el back `pnpm openapi:export`, en el front `pnpm api:types`. Es determinista: el resultado no depende de
+  quién resuelve. Haz `git add` del archivo regenerado y confirma el merge. Antes de terminar, `git fetch` y
+  comprueba que la rama sigue sin conflicto con la base: si otro PR entró mientras trabajabas, repite.
 - **Navegador sin preguntas.** No abras el navegador del panel de Claude Desktop (`preview_start`,
   `mcp__Claude_Browser__*`) ni Chrome: piden aprobación a la persona aunque estés en modo auto. Para ver una
   pantalla, levanta tu servidor con un comando en segundo plano y usa Playwright sin cabeza desde un script
