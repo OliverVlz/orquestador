@@ -40,6 +40,7 @@
  *   tablero                        cómo va todo (progress/tablero.md)
  *   tablero --servir [--puerto N]  el panel en el navegador (http://localhost:4321): pendientes, plan, tablero e
  *                                  historial; ahí respondes las preguntas de los workers
+ *   oficina [--puerto N]           la oficina en pixel art (http://localhost:4400): los agentes trabajando en vivo
  *
  * Opciones comunes: --dry-run (muestra lo que escribiría en Azure o git), --json (salida para máquinas).
  */
@@ -93,6 +94,8 @@ function main(): void {
     comment: () => cmdComment(cfg, id(), flags),
     guia: () => (flagText(flags, 'publicar') ? cmdPublicarGuia(cfg, Number(flagText(flags, 'publicar')), flags) : cmdGuia(cfg)),
     tablero: () => (flags.servir ? servir(Number(flags.puerto ?? 4321)) : cmdTablero(cfg)),
+    // Sin dependencias ni tipos: el servidor lee --puerto de process.argv.
+    oficina: () => import(new URL('./oficina/server.mjs', import.meta.url).href),
   };
   const run = commands[command];
   if (!run) {
