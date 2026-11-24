@@ -129,6 +129,11 @@ export function cmdStart(cfg: Config, id: number, flags: Flags): void {
     if (!isDryRun()) instalarSiFalta(repo, dir, flags);
     lines.push(`${repo.dir} → ${dir} (${branch})`);
   }
+  if (flags['sin-estado']) {
+    // Para retomar un ticket ya aceptado (p. ej. resolver el conflicto de su PR): no se mueve ni se comenta en Azure.
+    log(`done -> #${id} (sin tocar el estado en Azure) · ${lines.join(' · ')}`);
+    return;
+  }
   const state = fetchItem(p, id, { light: true });
   updateItem(
     p,

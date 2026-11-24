@@ -21,7 +21,7 @@
  *
  * Tickets (Azure DevOps)
  *   next [--resume] [--todos] [--limit N] [--proyecto P]   tickets para tomar (o en curso)
- *   start <id> [--repo carpeta] [--sin-instalar] [--sobre <id>]   carpeta worktrees/<grupo>/<id> por repo, ticket a «Doing»; --sobre: nace de la rama aprobada de otro ticket
+ *   start <id> [--repo carpeta] [--sin-instalar] [--sin-estado] [--sobre <id>]   carpeta worktrees/<grupo>/<id> por repo, ticket a «Doing»; --sobre: nace de la rama aprobada de otro ticket
  *   trabajar <id> --rol implementer|reviewer [--repo carpeta] [--motor m:modelo[:esfuerzo]] [--text indicaciones]
  *                                  lanza el worker con la cadena de motores de su talla; lee su informe
  *   finish <id> [--repo carpeta]   comprueba revisión aprobada y verificación; etiqueta el ticket

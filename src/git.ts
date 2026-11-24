@@ -3,7 +3,7 @@
  * son worktrees del checkout principal, que se queda limpio en su rama base. <grupo> es el
  * "worktrees" del repo en orquestador.json (backend, frontend…).
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { WORKSPACE, type RepoCfg } from './config.ts';
 import { exec, isDryRun, log, slugify } from './util.ts';
@@ -139,7 +139,12 @@ export function prepareWorktree(repo: RepoCfg, dir: string): void {
 /** Crea (o reutiliza) la carpeta del ticket. Devuelve la rama y si la carpeta es nueva. */
 export function ensureTicketWorktree(repo: RepoCfg, id: number, branch: string, base: string) {
   const dir = worktreePath(repo, id);
-  if (existsSync(dir)) return { dir, branch: ticketBranch(repo, id) || branch, created: false };
+  if (existsSync(dir)) {
+    if (existsSync(join(dir, '.git'))) return { dir, branch: ticketBranch(repo, id) || branch, created: false };
+    // Lo que deja `clean` cuando quita el worktree: solo node_modules (regenerable). Se borra para recrearlo.
+    if (readdirSync(dir).some((n) => n !== 'node_modules')) throw new Error(`${dir} existe, no es un worktree y tiene archivos propios: revísala a mano.`);
+    if (!isDryRun()) rmSync(dir, { recursive: true, force: true });
+  }
   const existing = ticketBranch(repo, id);
   const args = existing
     ? ['worktree', 'add', dir, existing]
