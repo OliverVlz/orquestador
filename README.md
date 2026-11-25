@@ -72,12 +72,16 @@ desde la página exige un token que solo tiene la página que sirvió el propio 
 Para ver a los agentes trabajando en vivo, como una oficina retro: cada agente en su escritorio con el cartel de
 su ticket (fase, % de avance, líneas), el jefe orquestador en su oficina y los libres tomando tinto o en el sofá.
 Arriba, «Done hoy» y «Semana» en grande; con el botón ▾ se despliega cuáles son.
+También: la carga del PC (un agente con demasiados procesos node «suda»), la causa de cada ticket colgado con la
+acción sugerida, la línea de tiempo de un ticket (clic en el agente), un menú de **Control** para matar procesos
+huérfanos y dejarle al coordinador la orden de pausar o reanudar, avisos al celular con ntfy (apagados hasta que
+elijas un tema en `oficina/config.local.json`) y mascotas 🐾 que solo decoran.
 
 ```bash
 node orquestador/orq.ts oficina                 # http://localhost:4400 (--puerto N para otro)
 ```
 
-No pide configuración: lee `progress/`, `worktrees/`, `orquestador.json` y `local.json`, y consulta Azure con tu
+No pide configuración (los umbrales y ntfy, opcionales, van en `oficina/config.local.json`): lee `progress/`, `worktrees/`, `orquestador.json` y `local.json`, y consulta Azure con tu
 sesión de `az` cada 5 minutos. Detalles en [`oficina/README.md`](oficina/README.md).
 
 ## El día a día

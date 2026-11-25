@@ -1,0 +1,27 @@
+{
+  "$comentario": "Ajustes de la oficina. Copia este archivo como oficina/config.local.json (no se versiona) y cambia solo lo que quieras: lo que falte sale de aquí.",
+  "carga": {
+    "$comentario": "Un agente «suda» si la RAM libre baja de ramLibreMinPct o si tiene más de nodePorAgenteMax procesos node.",
+    "ramLibreMinPct": 15,
+    "nodePorAgenteMax": 6
+  },
+  "colgados": {
+    "$comentario": "Pruebas largas: jest, vitest o eslint vivos hace más de pruebasLargasMin. Sin trabajo vivo: sin procesos ni cambios en sinActividadMin.",
+    "pruebasLargasMin": 15,
+    "sinActividadMin": 20
+  },
+  "huerfanos": {
+    "$comentario": "Además de los de tickets sin agente activo, son huérfanos los node de worktrees/ con más de viejosMin minutos que no gastan CPU.",
+    "viejosMin": 30
+  },
+  "ntfy": {
+    "$comentario": "Avisos al celular con ntfy.sh. Apagado hasta que elijas un tema (difícil de adivinar: cualquiera que lo sepa lee los avisos) y pongas activo en true.",
+    "activo": false,
+    "servidor": "https://ntfy.sh",
+    "tema": ""
+  },
+  "develop": {
+    "$comentario": "Cada cuántos minutos se mira el último pipeline de develop en Azure (si el proyecto tiene uno).",
+    "cadaMin": 15
+  }
+}

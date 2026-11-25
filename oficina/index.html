@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Oficina del orquestador</title>
+<meta name="oficina-token" content="__OFICINA_TOKEN__">
 <style>
   :root { --s: 2; --madera: #5a3a22; --crema: #fff3da; }
   * { box-sizing: border-box; }
@@ -141,6 +142,64 @@
   .cerrado b { color: #2d6a4f; flex: none; }
   .cerrado span { overflow: hidden; text-overflow: ellipsis; color: #5a3a22; }
   .sinconex { color: #b5473a; font-weight: bold; }
+
+  /* carga del PC, develop y control */
+  #hud .chip.carga { display: inline-flex; align-items: center; gap: calc(var(--s) * 2px); }
+  .medidor { display: inline-block; width: calc(var(--s) * 26px); height: calc(var(--s) * 4px); background: #1a100a;
+    box-shadow: inset 0 0 0 1px #6b4630; position: relative; overflow: hidden; }
+  .medidor i { position: absolute; left: 1px; top: 1px; bottom: 1px; display: block; background: #95d5b2; transition: width .8s steps(8); }
+  .medidor.cpu i { background: #79c0ff; }
+  #hud .chip.carga.alta { box-shadow: inset 0 0 0 2px #d62839; animation: pulso 1.2s steps(2) infinite; }
+  #hud .chip.carga.alta .medidor i { background: #ff7b72; }
+  #hud .chip.dev { color: #c9b08a; }
+  #hud .chip.dev.ok { color: #95d5b2; }
+  #hud .chip.dev.rojo { color: #fff; background: #8f1d27; box-shadow: inset 0 0 0 2px #ff7b72; }
+  #lista-control { width: calc(var(--s) * 150px); left: auto; right: 0; }
+  #lista-control button, .modal button {
+    font: inherit; cursor: pointer; border: 0; padding: calc(var(--s) * 1.5px) calc(var(--s) * 3px); margin: calc(var(--s) * 1px) 0;
+    background: #6b4630; color: #fff3da; box-shadow: 0 calc(var(--s) * 1px) 0 #3b2414; text-align: left; width: 100%;
+  }
+  #lista-control button:hover, .modal button:hover { background: #8a5a3b; }
+  #lista-control button:disabled { opacity: .45; cursor: not-allowed; }
+  #lista-control .nota, .modal .nota { color: #8a5a3b; font-size: .9em; margin: calc(var(--s) * 1px) 0; }
+
+  /* ventanas (modales) y línea de tiempo */
+  .velo { position: fixed; inset: 0; background: rgba(20, 10, 5, .55); z-index: 50; display: flex; align-items: center; justify-content: center; }
+  .modal {
+    background: var(--crema); color: #3b2414; width: min(92vw, calc(var(--s) * 260px)); max-height: 86vh; overflow: auto;
+    font-size: calc(var(--s) * 5.2px); line-height: 1.4; padding: calc(var(--s) * 4px) calc(var(--s) * 6px);
+    box-shadow: 0 0 0 4px #5a3a22, 10px 10px 0 4px rgba(0,0,0,.4);
+  }
+  .modal h2 { margin: 0 0 calc(var(--s) * 2px); font-size: 1.25em; color: #6b4630; }
+  .modal table { width: 100%; border-collapse: collapse; margin: calc(var(--s) * 2px) 0; }
+  .modal th, .modal td { text-align: left; padding: 2px 4px; border-bottom: 1px dashed #e0c9a0; white-space: nowrap; }
+  .modal td.motivo { white-space: normal; color: #8a5a3b; }
+  .modal .botones { display: flex; gap: calc(var(--s) * 3px); justify-content: flex-end; margin-top: calc(var(--s) * 3px); }
+  .modal .botones button { width: auto; text-align: center; }
+  .modal .botones button.peligro { background: #b5473a; }
+  .modal .botones button.secundario { background: #c9b08a; color: #3b2414; }
+  .modal .frase { display: flex; gap: 6px; align-items: center; background: #fff; padding: 4px 6px; box-shadow: inset 0 0 0 2px #d4a64a; margin: 4px 0; }
+  .modal .frase code { flex: 1; font-size: 1.1em; font-weight: bold; color: #2d6a4f; }
+  .modal .frase button { width: auto; }
+  .modal .coordinador { background: #fff6d6; padding: 4px 6px; box-shadow: inset 3px 0 0 #d4a64a; margin: 4px 0; }
+  .linea { list-style: none; margin: calc(var(--s) * 2px) 0; padding: 0 0 0 calc(var(--s) * 6px); position: relative; }
+  .linea::before { content: ""; position: absolute; left: calc(var(--s) * 2px); top: 4px; bottom: 4px; width: 2px; background: #d9c39a; }
+  .linea li { position: relative; padding: 2px 0 4px; }
+  .linea li::before { content: ""; position: absolute; left: calc(var(--s) * -5.5px); top: .45em; width: calc(var(--s) * 3px); height: calc(var(--s) * 3px);
+    background: var(--c, #8a5a3b); box-shadow: 0 0 0 1px #3b2414; }
+  .linea li time { color: #8a5a3b; margin-right: 6px; }
+  .linea li .dur { float: right; color: #8a5a3b; font-size: .9em; }
+  .linea li .det { display: block; color: #8a5a3b; font-size: .88em; }
+  .modal a { color: #1f6feb; font-weight: bold; }
+  #carteles .cartel { cursor: pointer; }
+  #carteles .cartel:hover { filter: brightness(1.04); }
+
+  /* etiqueta del colgado (bajo el escritorio) */
+  .rojo small { display: block; font-weight: normal; opacity: .95; }
+  .rojo { cursor: pointer; }
+  .rojo[data-causa="persona"] { background: #c98a1a; box-shadow: 0 0 0 calc(var(--s) * .7px) #6b4a0a; }
+  .rojo[data-causa="bloqueado"] { background: #7b4bb5; box-shadow: 0 0 0 calc(var(--s) * .7px) #3e2160; }
+  .rojo[data-causa="pruebas-largas"] { background: #d8662a; box-shadow: 0 0 0 calc(var(--s) * .7px) #6e2c0d; }
 </style>
 </head>
 <body>
@@ -158,6 +217,12 @@
     <span class="chip az" id="az" title="">☁ Azure</span>
     <span class="chip">⌨ Trabajando: <b id="trab">–</b></span>
     <span class="chip">🌊 Ola <b id="ola">–</b></span>
+    <span class="chip carga" id="carga" title="Carga del PC">🖥 <span class="medidor" title="RAM en uso"><i id="carga-ram" style="width:0"></i></span><span class="medidor cpu" title="CPU en uso"><i id="carga-cpu" style="width:0"></i></span><b id="carga-txt">–</b></span>
+    <span class="chip dev" id="develop" title="">⎇ develop …</span>
+    <span class="contador">
+      <button class="chip" data-lista="control" aria-expanded="false" title="Procesos, pausa y avisos">🎛 Control<i>▾</i></button>
+      <div class="desplegable" id="lista-control"></div>
+    </span>
     <span id="aviso"></span>
     <span class="der"><span id="quien"></span><span id="vivo"></span>Actualizado <b id="hora">--:--:--</b></span>
   </header>
@@ -172,6 +237,9 @@
 'use strict';
 /* =========================================================== escala */
 const W = 640, H = 270;
+// Enganches para panel.js y mascotas.js: dibujar en el suelo, sumar figuras ordenadas por profundidad, dibujar encima
+// de todo, moverse y enterarse de cada refresco.
+const ganchos = { suelo: [], dibujables: [], encima: [], mover: [], datos: [] };
 function escalar() {
   const libreAlto = innerHeight - 110;
   let s = Math.min((innerWidth - 40) / W, libreAlto / H);
@@ -233,8 +301,8 @@ const PUERTA = { x: 146, y: 248 };
 const REVISOR = { piel: '#e0ac69', pelo: '#8a8a8a', estilo: 'corto', camisa: '#d8c8a8', pantalon: '#4a3f35', gafas: true };
 
 /* ----------------------------------------------------------- fondo fijo (se pinta una vez) */
-function pintarFondo() {
-  X = bgx;
+function pintarFondo(lienzo = bgx, conTaza = true) {
+  X = lienzo;
   const rnd = semilla(7);
   // pared
   R(0, 0, W, 140, '#f0cfa2');
@@ -285,7 +353,7 @@ function pintarFondo() {
     // adorno
     const d = i % 5;
     if (d === 0) { R(cx + 19, 162, 6, 6, '#c8643c'); R(cx + 17, 156, 4, 6, '#5a9a4a'); R(cx + 21, 154, 4, 8, '#3f7f3a'); R(cx + 23, 158, 3, 4, '#6fb35a'); }
-    if (d === 1) { R(cx + 19, 163, 5, 5, '#fefefe'); R(cx + 24, 164, 2, 3, '#fefefe'); R(cx + 20, 163, 3, 1, '#6b3e26'); }
+    if (d === 1 && conTaza) { R(cx + 19, 163, 5, 5, '#fefefe'); R(cx + 24, 164, 2, 3, '#fefefe'); R(cx + 20, 163, 3, 1, '#6b3e26'); }
     if (d === 2) { R(cx + 24, 160, 2, 8, '#3a3650'); R(cx + 18, 158, 8, 3, '#e9c46a'); R(cx + 20, 167, 8, 1, '#3a3650'); }
     if (d === 3) { R(cx + 18, 159, 8, 9, '#6b4630'); R(cx + 19, 160, 6, 7, '#9bd1e5'); R(cx + 20, 163, 2, 2, '#e76f51'); R(cx + 23, 162, 1, 3, '#2a9d8f'); }
     if (d === 4) { R(cx + 19, 163, 6, 5, '#ffd60a'); R(cx + 22, 160, 4, 4, '#ffd60a'); R(cx + 26, 161, 2, 1, '#f77f00'); R(cx + 24, 161, 1, 1, '#222'); }
@@ -661,6 +729,7 @@ function avanzar(o, dt) {
   return !o.ruta.length;
 }
 function mover(dt) {
+  for (const g of ganchos.mover) g(dt);
   for (const r of revisores) {
     if (r.estado !== 'llega' && r.estado !== 'sale') continue;
     if (avanzar(r, dt)) r.estado = r.estado === 'llega' ? 'ahi' : 'fuera';
@@ -706,6 +775,7 @@ function extra(id, clase, izq, arriba, ancho) {
   if (ancho) el.style.width = `calc(var(--s) * ${ancho}px)`;
   return el;
 }
+const ICONO_COLGADO = { 'pruebas-largas': '⏳', 'sin-trabajo': '💤', persona: '🙋', bloqueado: '⛔' };
 const ICONO = { trabajando: '⌨', revisando: '🔍', esperando: '⏳', bloqueado: '❓', libre: '☕' };
 /** Vuelta de cambios, motor y sincronía con la base, en una línea del cartel. */
 function metaDe(d) {
@@ -745,9 +815,17 @@ function pintarCarteles() {
     const prueba = extra('globo-prueba-' + i, 'globo prueba', cx - 30, 113);
     prueba.textContent = '⚙ Ejecutando pruebas…';
     prueba.classList.toggle('ver', Boolean(d?.pruebas && !d.atascado));
-    const rojo = extra('rojo-' + i, 'rojo', cx - 31, 214, 62);
-    rojo.textContent = `¿Atascado? ${duracion(d?.inactivoMin ?? 0)} sin actividad`;
-    rojo.classList.toggle('ver', Boolean(d?.atascado));
+    const rojo = extra('rojo-' + i, 'rojo', cx - 33, 214, 66);
+    if (d?.colgado) {
+      rojo.innerHTML = `${ICONO_COLGADO[d.colgado.causa] ?? '⚠'} ${esc(d.colgado.titulo)}<small>→ ${esc(d.colgado.accion)}</small>`;
+      rojo.dataset.causa = d.colgado.causa;
+      rojo.title = d.colgado.detalle ?? '';
+    } else {
+      rojo.textContent = `¿Atascado? ${duracion(d?.inactivoMin ?? 0)} sin actividad`;
+      delete rojo.dataset.causa;
+      rojo.title = '';
+    }
+    rojo.classList.toggle('ver', Boolean(d?.colgado || d?.atascado));
     extra('globo-rev-' + i, 'globo', cx + 18, 185).textContent = '🔍 Revisando…';
     const preg = extra('globo-pregunta-' + i, 'globo pregunta', cx - 30, 113);
     preg.textContent = d?.espera === 'negocio' ? '❓ Te espera una respuesta' : `❓ Bloqueado: ${d?.espera ?? ''}`;
@@ -837,8 +915,12 @@ async function traer() {
     agentes.forEach((a, i) => { a.dato = estado.agentes?.[i] ?? null; });
     repartir();
     agentes.forEach((a, i) => revisorA(i, a.dato?.modo === 'revisando' && !a.dato.atascado));
+    const primera = primeraCarga;
     primeraCarga = false;
     pintarCarteles();
+    for (const g of ganchos.datos) {
+      try { g(estado, primera); } catch (e) { console.error(e); }
+    }
     document.getElementById('cerrados').textContent = estado.cerradosHoy ?? 0;
     document.getElementById('aqa').textContent = estado.enQaHoy ?? 0;
     const cer = estado.cerrados ?? {};
@@ -871,6 +953,8 @@ function halo(x, y, r, c) {
   ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
 }
 pintarFondo();
+const bgSinTaza = document.createElement('canvas'); bgSinTaza.width = W; bgSinTaza.height = H;
+pintarFondo(bgSinTaza.getContext('2d'), false);
 let antes = 0, ultimoCuadro = 0;
 function cuadro(t) {
   requestAnimationFrame(cuadro);
@@ -885,6 +969,7 @@ function cuadro(t) {
   vapor(519, 134, t); vapor(521, 133, t, 0.5);
   R(513, 123, 5, 3, Math.floor(t / 800) % 2 ? '#7ee787' : '#3fb950');
   R(514, 135, 10, 10, 'rgba(200,230,255,.45)'); R(515, 139, 8, 6, '#4a2a17'); R(514, 135, 10, 1, '#dfe9ef');
+  for (const g of ganchos.suelo) g(t);
   jefe(t);
   agentes.forEach((a, i) => {
     const cx = ESCRITORIOS[i];
@@ -903,6 +988,7 @@ function cuadro(t) {
       .map((a) => ({ y: a.y, pintar: () => deFrente(a.x, a.y, a.aspecto, a.pose, t, a.n, a.pose === 'cafe' ? 'tinto' : null) })),
     ...revisores.map((r, i) => ({ r, i })).filter(({ r }) => r.estado !== 'fuera')
       .map(({ r, i }) => ({ y: r.y, pintar: () => deFrente(r.x, r.y, REVISOR, r.estado === 'ahi' ? 'pie' : 'camina', t, 7 + i, r.estado === 'ahi' ? 'lupa' : null) })),
+    ...ganchos.dibujables.flatMap((g) => g(t)),
   ].sort((p, q) => p.y - q.y);
   for (const p of dePie) p.pintar();
   revisores.forEach((r, i) => document.getElementById('globo-rev-' + i)?.classList.toggle('ver', r.estado === 'ahi' && Math.floor(t / 4000 + i) % 3 !== 2));
@@ -917,8 +1003,11 @@ function cuadro(t) {
     halo(519, 126, 14, 'rgba(255,120,110,.10)');
     ctx.globalCompositeOperation = 'source-over';
   }
+  for (const g of ganchos.encima) g(t);
 }
 requestAnimationFrame(cuadro);
 </script>
+<script src="panel.js"></script>
+<script src="mascotas.js"></script>
 </body>
 </html>
