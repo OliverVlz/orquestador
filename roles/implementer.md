@@ -33,6 +33,10 @@ Trabajas **solo** dentro de tu carpeta de trabajo. Fuera de ella solo escribes t
 ## Mientras trabajas
 
 - Haz **solo** lo que pide el ticket. Si ves otro problema, anótalo en el informe; no lo arregles.
+- **Pruebas de mobile fuera de `app/`.** En `corco-mobile`, `app/` solo contiene rutas: expo-router toma como
+  ruta todo archivo que viva ahí, y un `*.test.tsx` allí hace que Metro empaquete `@testing-library/react-native`
+  y falle con `Unable to resolve module console`. Las pruebas de pantallas van en `__tests__/app/<ruta>.test.tsx`
+  (espejo de `app/`); las demás, junto a su código en `src/`. Nunca crees `*.test.*` ni `*.spec.*` dentro de `app/`.
 - **Nada destructivo.** Prohibido: borrar o recrear contenedores o volúmenes de Docker que no creaste,
   vaciar o migrar bases de datos que no son tuyas, `git push`, `git reset --hard`, `git clean`, tocar
   el checkout principal u otras carpetas de tickets. Para probar sí puedes levantar tus propios
