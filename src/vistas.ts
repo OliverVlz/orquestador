@@ -2,21 +2,44 @@
  * Lo que mira la persona: qué probar (guía) y cómo va todo (tablero). Se imprimen y quedan en
  * progress/ del workspace.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fetchItem, prStatus, prUrl, prsPorRama, summarize, ticketUrl } from './ado.ts';
-import { PROGRESS, qaBranch, type Config } from './config.ts';
+import { PROGRESS, qaBranch, type Config, type ProyectoCfg, type RepoCfg } from './config.ts';
 import { baseRef, ramasContenidasEn, ramasLocales, shortHead, ticketsInQa, worktreePath } from './git.ts';
 import { boardState, readHistory, type EstadoTicket } from './historial.ts';
 import { criterios, proyectoPorNombre, readMeta, repoWorkDir } from './tickets.ts';
 import { day, log, readSection } from './util.ts';
 import { leerValidacion, resumenValidacion, type ValidacionIa } from './validacion.ts';
 
-function save(name: string, lines: string[]): void {
+function save(name: string, lines: string[], mostrar = true): void {
   const text = `${lines.join('\n').trim()}\n`;
   mkdirSync(PROGRESS, { recursive: true });
   writeFileSync(join(PROGRESS, name), text);
-  log(text);
+  if (mostrar) log(text);
+}
+
+/** El valor por defecto de una variable en el `.env.example` del repo (el `.env` real nunca se lee aquí). */
+function ejemploEnv(repo: Pick<RepoCfg, 'path'>, nombre: string): string {
+  const file = join(repo.path, '.env.example');
+  if (!existsSync(file)) return `<${nombre}>`;
+  const linea = readFileSync(file, 'utf8').split(/\r?\n/).find((l) => l.startsWith(`${nombre}=`));
+  return linea ? linea.slice(nombre.length + 1).trim() || `<${nombre}>` : `<${nombre}>`;
+}
+
+/** Las líneas de «cómo conseguir una cuenta» de un repo, con `{env:VAR}` y `{qa}` ya llenados. */
+export function lineasCuentas(repo: RepoCfg): string[] {
+  return (repo.cuentas?.como ?? []).map((l) =>
+    l.replace(/\{env:([A-Za-z0-9_]+)\}/g, (_, v: string) => ejemploEnv(repo, v)).replaceAll('{qa}', worktreePath(repo, 'qa')),
+  );
+}
+
+/** El repo del proyecto que sabe de cuentas (el back: ahí viven los usuarios), si alguno lo declara. */
+const repoDeCuentas = (p: ProyectoCfg): RepoCfg | undefined => p.repos.find((r) => r.cuentas);
+
+/** Los roles de la app que menciona el texto de un ticket (su «Cómo probarlo» y sus criterios). */
+export function rolesDeTexto(roles: string[], texto: string): string[] {
+  return roles.filter((r) => new RegExp(`(^|[^A-Z_])${r}([^A-Z_]|$)`).test(texto));
 }
 
 /* ------------------------------------------------------------------------ guía */
@@ -98,7 +121,7 @@ export function guiaData(cfg: Config): { rama: string; levantar: Levantar[]; tar
   return { rama, levantar, tareas };
 }
 
-export function cmdGuia(cfg: Config): void {
+export function cmdGuia(cfg: Config, mostrar = true): void {
   const { rama: branch, levantar, tareas } = guiaData(cfg);
   const lines = [`# Qué probar · ${branch} · ${tareas.length} tarea(s)`, ''];
   if (tareas.length === 0) lines.push(`Nada pendiente: no hay tareas mezcladas en ${branch} que falten en la base.`, '');
@@ -108,6 +131,13 @@ export function cmdGuia(cfg: Config): void {
       ...levantar.map((l, i) => `${i + 1}. ${l.repo} @${l.head}: \`cd "${l.carpeta}" && ${l.comando}\`${l.url ? ` → ${l.url}` : ''}`),
       '',
     );
+  // Cuentas de prueba: una vez por repo que las declara (el back), para todas las tareas de la guía.
+  const conCuentas = new Set<RepoCfg>();
+  for (const t of tareas) {
+    const r = repoDeCuentas(cfg.proyectos.find((x) => x.nombre === t.proyecto)!);
+    if (r) conCuentas.add(r);
+  }
+  for (const r of conCuentas) lines.push(`## Cuentas de prueba (${r.dir})`, ...lineasCuentas(r).map((l) => `- ${l}`), '');
   tareas.forEach((t, i) => {
     lines.push(
       `## ${i + 1}. Tarea #${t.id} (${t.repo}) · ${t.title}`,
@@ -120,12 +150,16 @@ export function cmdGuia(cfg: Config): void {
       for (const c of t.validacion.criterios.filter((c) => c.marca === '✘')) lines.push(`  - ✘ ${c.texto}`);
     }
     if (!t.tested) lines.push(`- ⚠ La rama cambió después de mezclarla: corre \`qa ${t.id}\` antes de probar.`);
+    const rc = repoDeCuentas(cfg.proyectos.find((x) => x.nombre === t.proyecto)!);
+    const roles = rc ? rolesDeTexto(rc.cuentas!.roles, `${t.comoProbar}\n${t.checks.join('\n')}`) : [];
+    if (roles.length)
+      lines.push(`- **Cuentas que necesitas:** ${roles.map((r) => `\`${r}\``).join(', ')} — cómo conseguirlas, en «Cuentas de prueba (${rc!.dir})» arriba.`);
     if (t.comoProbar) lines.push('- **Cómo probarlo:**', ...t.comoProbar.split('\n').map((l) => `  ${l}`));
     else lines.push('- **Cómo probarlo:** el implementer no lo dejó escrito; pídeselo al coordinador.');
     const checks = t.checks.length ? t.checks : ['El ticket no tiene criterios de aceptación: míralo en Azure.'];
     lines.push('- **Criterios de aceptación (qué validar):**', ...checks.map((c) => `  - [ ] ${c}`), `- **Funciona:** \`/qa-ok ${t.id}\` · **Falla:** \`/qa-falla ${t.id} <qué falló>\``, '');
   });
-  save('guia-pruebas.md', lines);
+  save('guia-pruebas.md', lines, mostrar);
 }
 
 /* --------------------------------------------------------------------- tablero */

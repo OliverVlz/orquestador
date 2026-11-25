@@ -30,6 +30,12 @@ export type RepoCfg = {
   entorno?: Record<string, string>;
   /** Archivos generados que no se resuelven a mano en un conflicto (p. ej. openapi/openapi.json) y el comando que los regenera. */
   generados?: string[];
+  /**
+   * Cuentas de prueba del repo, para la guía de `qa`: los roles que existen (para saber cuáles pide un ticket) y
+   * cómo conseguir una cuenta de cada uno. En `como`, `{env:VAR}` se llena con el valor por defecto de VAR en el
+   * `.env.example` del repo (nunca del `.env` real) y `{qa}` es la carpeta de la rama de pruebas.
+   */
+  cuentas?: { roles: string[]; como: string[] };
   regenerar?: string;
   /** Subcarpeta de `worktrees/` donde van las carpetas de sus tickets: backend, frontend… (por defecto, `dir`). */
   worktrees: string;
