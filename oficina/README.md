@@ -58,10 +58,16 @@ cierra con Ctrl+C.
 - **¿Atascado?**: más de 20 minutos sin actividad ni pruebas, con el ticket aún en manos del agente (antes de
   aprobado). El agente se duerme con «zzz» y sale una etiqueta roja con el tiempo. Lo aprobado o en QA espera a
   una persona, así que no cuenta.
+- **Vuelta, motor y sincronía** (en el cartel): «↻ vuelta N» son las veces que el reviewer devolvió CAMBIOS desde el
+  último inicio (rojo desde 3); el motor es el del último worker (con «⬆» si el ticket escaló de motor, y la cadena en
+  el tooltip); «⎇ al día», «⎇ −N» (la rama está N commits atrás de su base) o «⚠ conflicto» (el último intento de
+  sincronizar con la base chocó y sigue sin resolverse).
+- **Preguntas**: un ticket bloqueado muestra un globo «❓ Te espera una respuesta» (negocio) o «❓ Bloqueado: <tipo>»;
+  la pregunta completa va en el tooltip del cartel y en el ticker.
 - **Líneas**: `git diff --shortstat origin/<ramaBase>...HEAD` en `worktrees/<grupo>/<id>`, más lo no confirmado
   (también los archivos nuevos). Un ticket apilado (`sobre.json`) se compara con la rama del otro ticket.
-- **Done hoy y semana**: `az boards query` (estado Done o Closed, `StateChangeDate >= @Today` y `@Today - 7`), cada
-  **5 minutos**, no en cada refresco. Si `az` falla, queda el último valor bueno y la marca «Azure sin conexión»;
+- **Done hoy y semana**: `az boards query` (estado Done o Closed, una sola consulta de los últimos 8 días; el corte de hoy y de la semana
+  se hace con el día local, porque `@Today` de Azure usa la zona de la organización), cada **5 minutos**, no en cada refresco. Si `az` falla, queda el último valor bueno y la marca «Azure sin conexión»;
   mientras Azure no haya respondido nunca, se cuentan los `aceptado` de hoy del historial.
 
 El servidor recalcula cada 10 s y la página pide `/estado.json` cada 10 s.

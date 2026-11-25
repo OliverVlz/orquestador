@@ -110,6 +110,12 @@
     box-shadow: 0 0 0 calc(var(--s) * 0.7px) #6a0f19; animation: menear 2.4s ease-in-out infinite;
   }
   .rojo.ver { display: block; }
+  .cartel .meta { display: flex; justify-content: space-between; gap: 4px; white-space: nowrap; color: #8a5a3b; }
+  .cartel .meta .vta.alta { color: #d62839; font-weight: bold; }
+  .cartel .meta .esc { color: #b5473a; font-weight: bold; }
+  .cartel .meta .sync.atras { color: #b07a1e; }
+  .cartel .meta .sync.conf { color: #d62839; font-weight: bold; }
+  .globo.pregunta { background: #ffe9a8; }
   .cartel .act { color: #8a5a3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cartel .act.dormido { color: #d62839; font-weight: bold; }
   #burbuja {
@@ -701,6 +707,17 @@ function extra(id, clase, izq, arriba, ancho) {
   return el;
 }
 const ICONO = { trabajando: '⌨', revisando: '🔍', esperando: '⏳', bloqueado: '❓', libre: '☕' };
+/** Vuelta de cambios, motor y sincronía con la base, en una línea del cartel. */
+function metaDe(d) {
+  const vta = d.vueltas > 0 ? `<span class="vta${d.vueltas >= VUELTAS_ALERTA ? ' alta' : ''}">↻ vuelta ${d.vueltas}</span>` : '<span class="vta">↻ 0</span>';
+  const mot = d.motor ? `<span class="${d.motores?.length > 1 ? 'esc' : ''}">${d.motores?.length > 1 ? '⬆ ' : ''}${esc(motorCorto(d.motor))}</span>` : '';
+  const sy = d.sync;
+  const sync = !sy ? '' : sy.conflicto ? '<span class="sync conf">⚠ conflicto</span>' : sy.atras > 0 ? `<span class="sync atras">⎇ −${sy.atras}</span>` : '<span class="sync">⎇ al día</span>';
+  return `<div class="meta">${vta}${mot}</div>${sync ? `<div class="meta">${sync}</div>` : ''}`;
+}
+/** `claude:sonnet:high` → `sonnet·high` (el proveedor sobra en un cartel tan chico). */
+const motorCorto = (m) => String(m ?? '').split(':').slice(1).join('·') || String(m ?? '');
+const VUELTAS_ALERTA = 3;
 function pintarCarteles() {
   agentes.forEach((a, i) => {
     const el = cartel('cartel-' + i, ESCRITORIOS[i] - 33, 66);
@@ -711,13 +728,15 @@ function pintarCarteles() {
     const cab = `<div class="cab"><span class="pto" style="background:${a.aspecto.camisa}"></span>${esc(d?.nombre ?? 'Agente ' + a.n)}${d?.repo ? `<span class="repo">${esc(d.grupo ?? d.repo)}</span>` : ''}</div>`;
     if (!d) { el.innerHTML = cab + '<div class="vacio">Escritorio vacío</div>'; return; }
     if (d.ticket == null) { el.innerHTML = cab + '<div class="vacio">Sin ticket<br>☕ en la sala del tinto</div>'; el.title = ''; return; }
-    el.title = `${d.fase}${d.pregunta ? ' · ' + d.pregunta : ''}${d.ultimo ? ` · último: ${d.ultimo.rol} ${d.ultimo.resultado} (${d.ultimo.motor})` : ''}`;
+    el.title = `${d.fase}${d.pregunta ? ' · ' + d.pregunta : ''}${d.ultimo ? ` · último: ${d.ultimo.rol} ${d.ultimo.resultado} (${d.ultimo.motor})` : ''}` +
+      `${d.vueltas ? ` · ${d.vueltas} vuelta(s) de cambios` : ''}${d.motores?.length > 1 ? ` · motores: ${d.motores.join(' → ')}` : ''}`;
     el.innerHTML = cab +
       `<div class="tk"><b>#${d.ticket}</b> ${esc(d.codigo)}${d.talla ? ' · ' + esc(d.talla) : ''}</div>` +
       `<div class="nom">${esc(d.titulo)}</div>` +
       `<div class="barra"><i style="width:calc(${d.pct}% - 2px)"></i></div>` +
       `<div class="fila"><span class="pct">${d.done ? '✔ DONE' : d.pct + '%'}</span><span class="falta">${d.done ? '¡listo!' : 'faltan ' + d.falta + '%'}</span></div>` +
       `<div class="fila"><span><span class="mas">+${fmt(d.mas)}</span> <span class="menos">−${fmt(d.menos)}</span></span><span class="falta">${d.commits} c</span></div>` +
+      metaDe(d) +
       `<div class="fase">${ICONO[d.modo] ?? ''} ${esc(d.fase)}</div>` +
       `<div class="act${d.atascado ? ' dormido' : ''}">${d.pruebas ? '⚙ pruebas · ' : '🕒 '}${hace(d.actividad)}</div>`;
   });
@@ -730,6 +749,9 @@ function pintarCarteles() {
     rojo.textContent = `¿Atascado? ${duracion(d?.inactivoMin ?? 0)} sin actividad`;
     rojo.classList.toggle('ver', Boolean(d?.atascado));
     extra('globo-rev-' + i, 'globo', cx + 18, 185).textContent = '🔍 Revisando…';
+    const preg = extra('globo-pregunta-' + i, 'globo pregunta', cx - 30, 113);
+    preg.textContent = d?.espera === 'negocio' ? '❓ Te espera una respuesta' : `❓ Bloqueado: ${d?.espera ?? ''}`;
+    preg.classList.toggle('ver', Boolean(d?.modo === 'bloqueado' && d?.espera && !d.pruebas));
   });
   const jefeEl = cartel('cartel-jefe', 8, 122);
   jefeEl.style.setProperty('--modo', '#d4a64a');
@@ -754,7 +776,7 @@ function frasesDelJefe() {
   const ag = estado.agentes ?? [];
   for (const a of ag.filter((x) => x.atascado)) f.push(`#${a.ticket} lleva ${duracion(a.inactivoMin ?? 0)} quieto. ¿Se durmió? 😴`);
   for (const a of ag.filter((x) => x.pruebas)) f.push(`Corriendo pruebas en #${a.ticket}… crucemos los dedos 🤞`);
-  for (const a of ag.filter((x) => x.modo === 'bloqueado')) f.push(`#${a.ticket}: ${a.fase.toLowerCase()}. Ya lo miro.`);
+  for (const a of ag.filter((x) => x.modo === 'bloqueado')) f.push(`#${a.ticket}: ${a.fase.toLowerCase()}${a.pregunta ? ' — «' + a.pregunta.slice(0, 90) + '»' : ''}. Ya lo miro.`);
   for (const a of ag.filter((x) => x.modo === 'revisando')) f.push(`A ver esa revisión de #${a.ticket}…`);
   for (const a of ag.filter((x) => x.modo === 'esperando')) f.push(`#${a.ticket} está LISTO. ¡Que pase el reviewer!`);
   for (const a of ag.filter((x) => x.pct >= 75 && !x.done)) f.push(`#${a.ticket} aprobado. Tintico merecido ☕`);

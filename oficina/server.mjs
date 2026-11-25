@@ -301,6 +301,10 @@ async function faseBase(id, repo, cfg, eventos) {
     mas: 0,
     menos: 0,
     commits: 0,
+    vueltas: 0,
+    motor: null,
+    motores: [],
+    sync: null,
   };
   if (!existsSync(tdir)) return { ...base, pct: 0, fase: 'Sin carpeta', modo: 'libre' };
 
@@ -311,6 +315,12 @@ async function faseBase(id, repo, cfg, eventos) {
   const ultimaRespuesta = delTicket.findLast((e) => e.event === 'respondido');
   const pregunta = ultimaPregunta && (!ultimaRespuesta || ultimaRespuesta.at < ultimaPregunta.at);
   const ultimoTrabajo = delRepo.findLast((e) => e.event === 'trabajo');
+  // Vueltas: veces que el reviewer devolvió CAMBIOS desde el último inicio (como `rondasDeCambios` del orquestador).
+  const desdeInicio = delRepo.slice(delRepo.findLastIndex((e) => e.event === 'iniciado') + 1);
+  base.vueltas = desdeInicio.filter((e) => e.event === 'trabajo' && e.rol === 'reviewer' && e.resultado === 'CAMBIOS').length;
+  // Motores del implementer en orden de uso (sin repetir): más de uno = el ticket escaló en la cadena.
+  base.motores = [...new Set(desdeInicio.filter((e) => e.event === 'trabajo' && e.rol === 'implementer' && e.motor && e.motor !== 'orquestador').map((e) => e.motor))];
+  base.motor = [...desdeInicio].reverse().find((e) => e.event === 'trabajo' && e.motor && e.motor !== 'orquestador')?.motor ?? null;
 
   const repoCfg = cfg.repos.get(repo) ?? { grupo: repo, ramaBase: 'develop' };
   const wt = join(RAIZ, 'worktrees', repoCfg.grupo, String(id));
@@ -333,6 +343,12 @@ async function faseBase(id, repo, cfg, eventos) {
     base.menos = a.menos + b.menos;
     base.commits = Number(cuenta ?? 0) || 0;
     ultimoCommit = Number(ct ?? 0) * 1000;
+    // Sincronía con la base: commits de la base que la rama no tiene. Un CONFLICTO sin resolver lo registra `trabajar`.
+    const atras = Number(await git(['rev-list', '--count', `HEAD..${baseRef}`], wt)) || 0;
+    const ultTrabajoSync = delRepo.findLast((e) => e.event === 'trabajo' && e.rol === 'implementer' && e.resultado !== 'SIN_CUOTA');
+    const ultConflicto = delRepo.findLast((e) => e.event === 'trabajo' && e.resultado === 'CONFLICTO');
+    const conflicto = Boolean(ultConflicto && (!ultTrabajoSync || ultTrabajoSync.at < ultConflicto.at));
+    base.sync = { atras, conflicto };
   }
   const empujada = async () => {
     const rama = hito?.branch ?? (existsSync(wt) ? await git(['branch', '--show-current'], wt) : null);
@@ -362,7 +378,7 @@ async function faseBase(id, repo, cfg, eventos) {
   const pendRevT = mtime(pendRev);
   const fallo = hito?.event === 'falló' ? Date.parse(hito.at) : 0;
 
-  if (pregunta) return con(Math.max(20, Math.min(50, 20 + base.commits * 6)), 'Esperando respuesta', 'bloqueado', { pregunta: ultimaPregunta.note ?? '' });
+  if (pregunta) return con(Math.max(20, Math.min(50, 20 + base.commits * 6)), 'Esperando respuesta', 'bloqueado', { pregunta: ultimaPregunta.note ?? '', espera: 'negocio' });
 
   if (dictamen === 'APROBADO' && reviewT >= ultimoCommit - 1000 && reviewT > fallo) {
     const tags = (meta.tags ?? []).map((t) => String(t).toLowerCase());
@@ -376,12 +392,13 @@ async function faseBase(id, repo, cfg, eventos) {
 
   const implVigente = implT > ultimoBrief && implT > reviewT && implT > fallo;
   if (implVigente && estadoImpl?.[1] === 'LISTO') return con(55, 'Impl. LISTO', 'esperando');
-  if (implVigente && estadoImpl?.[1] === 'BLOQUEADO')
-    return con(
-      Math.max(20, Math.min(50, 20 + base.commits * 6)),
-      `Bloqueado · ${(/^TIPO_BLOQUEO:\s*(\S+)/m.exec(implTxt)?.[1] ?? estadoImpl[2].trim().slice(0, 30)) || 'sin detalle'}`,
-      'bloqueado',
-    );
+  if (implVigente && estadoImpl?.[1] === 'BLOQUEADO') {
+    const tipo = /^TIPO_BLOQUEO:\s*(\S+)/m.exec(implTxt)?.[1] ?? estadoImpl[2].trim().slice(0, 30);
+    return con(Math.max(20, Math.min(50, 20 + base.commits * 6)), `Bloqueado · ${tipo || 'sin detalle'}`, 'bloqueado', {
+      pregunta: (/^PREGUNTA:\s*(.+)$/m.exec(implTxt)?.[1] ?? '').slice(0, 300),
+      espera: tipo || 'bloqueo',
+    });
+  }
 
   const corrigiendo = (dictamen === 'CAMBIOS' && reviewT > 0) || fallo > 0;
   if (existsSync(wt) && (base.commits > 0 || base.mas + base.menos > 0))
@@ -497,7 +514,9 @@ function az(args) {
       (err, stdout, stderr) => {
         if (err) return mal(new Error(decodificar(stderr ?? Buffer.alloc(0)).trim().split('\n').at(-1) || err.message));
         try {
-          ok(JSON.parse(decodificar(stdout)));
+          // `az boards query` sin resultados no imprime nada (ni `[]`): es una lista vacía, no un error.
+          const texto = decodificar(stdout).trim();
+          ok(texto ? JSON.parse(texto) : []);
         } catch (e) {
           mal(new Error(`respuesta de az ilegible: ${e.message}`));
         }
@@ -530,12 +549,16 @@ async function consultarAzure() {
   try {
     const cfg = config();
     if (!cfg.ados.length) throw new Error('orquestador.json no tiene proyectos con ado');
-    const hoy = [], semana = [], doing = [];
+    // Una sola consulta de los cerrados (con un día de colchón) y el corte de «hoy» y «semana» se hace aquí, con el
+    // día local: `@Today` de Azure usa la zona de la organización (UTC) y a media tarde ya es «mañana» allí.
+    const cerrados = [], doing = [];
     for (const ado of cfg.ados) {
-      hoy.push(...(await cerradosDesde(ado, '@Today')));
-      semana.push(...(await cerradosDesde(ado, '@Today - 7')));
+      cerrados.push(...(await cerradosDesde(ado, '@Today - 8')));
       doing.push(...(await consulta(ado, `[System.State] IN (${ESTADOS_EN_CURSO})`)).map((x) => x.id));
     }
+    const inicioHoy = new Date().setHours(0, 0, 0, 0);
+    const hoy = cerrados.filter((x) => x.at && new Date(x.at).getTime() >= inicioHoy);
+    const semana = cerrados.filter((x) => x.at && new Date(x.at).getTime() >= inicioHoy - 7 * 86_400_000);
     if (!azure.persona && !cfg.persona) {
       // Sin local.json: el nombre sale de la cuenta de az (nombre.apellido@… -> Nombre).
       const cuenta = await az(['account', 'show', '-o', 'json']).catch(() => null);
