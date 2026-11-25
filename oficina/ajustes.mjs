@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const POR_DEFECTO = {
   carga: { ramLibreMinPct: 15, nodePorAgenteMax: 6 },
-  colgados: { pruebasLargasMin: 15, sinActividadMin: 20 },
+  colgados: { pruebasLargasMin: 15, sinActividadMin: 15 },
   huerfanos: { viejosMin: 30 },
   ntfy: { activo: false, servidor: 'https://ntfy.sh', tema: '' },
   develop: { cadaMin: 15 },

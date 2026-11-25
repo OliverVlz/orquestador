@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { crearAjustes } from './ajustes.mjs';
 import { crearAvisos } from './avisos.mjs';
 import { crearLinea } from './linea.mjs';
+import { vidaDe } from './vivo.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const ORQ = resolve(AQUI, '..');
@@ -336,7 +337,7 @@ function colgadoDe(a, procs, cola, aj) {
       detalle: `${nombreProceso(p.cmd)} (PID ${p.pid}) lleva ${Math.round(p.edadMin)} min${quieto}`, accion: `Matar el proceso ${p.pid}`, pid: Number(p.pid),
     };
   }
-  if (!procs.length && !a.vivo && a.inactivoMin != null && a.inactivoMin >= aj.colgados.sinActividadMin) {
+  if (!a.vivo && a.inactivoMin != null) {
     const rol = a.modo === 'revisando' || a.modo === 'esperando' || /revisi/i.test(a.fase ?? '') ? 'reviewer' : 'implementer';
     return {
       causa: 'sin-trabajo', titulo: `Sin trabajo vivo · ${a.inactivoMin} min`,
@@ -448,22 +449,73 @@ async function actividadDe(tdir, wt) {
   };
 }
 
-async function faseDe(id, repo, cfg, eventos) {
-  const fase = await faseBase(id, repo, cfg, eventos);
+/** El `*-desktop.pendiente.json` más nuevo de un ticket (rol y cuándo se lanzó), o null. */
+function pendienteDesktop(rdir) {
+  let mejor = null;
+  for (const rol of ['implementer', 'reviewer']) {
+    const ruta = join(rdir, `${rol}-desktop.pendiente.json`);
+    if (!existsSync(ruta)) continue;
+    const desdeMs = Number(leerJson(ruta)?.started) || mtime(ruta);
+    if (!mejor || desdeMs > mejor.desdeMs) mejor = { rol, desdeMs };
+  }
+  return mejor;
+}
+const ultimoArchivo = (rdir, re) => {
+  try {
+    return Math.max(0, ...readdirSync(rdir).filter((f) => re.test(f)).map((f) => mtime(join(rdir, f))));
+  } catch {
+    return 0;
+  }
+};
+
+/** Actividad del ticket y si tiene trabajo vivo con cualquier motor (ver vivo.ts). Se calcula una vez por refresco. */
+async function senalesDe(id, repo, cfg, asignado, cache) {
+  const clave = `${id}|${repo}`;
+  if (cache?.has(clave)) return cache.get(clave);
   const tdir = join(PROGRESS, 'tickets', String(id));
-  const wt = join(RAIZ, 'worktrees', cfg.repos.get(repo)?.grupo ?? repo, String(id));
+  const rdir = join(tdir, repo);
+  const grupo = String(cfg.repos.get(repo)?.grupo ?? repo);
+  const wt = join(RAIZ, 'worktrees', grupo, String(id));
   const { inactivo, ...act } = await actividadDe(tdir, wt);
-  const rolVivo = trabajadoresVivos().get(id) ?? null;
-  const vivo = rolVivo !== null;
-  // Un reviewer vivo es otro proceso: el ticket se ve «En revisión» (aparece el revisor junto al escritorio).
-  if (rolVivo === 'reviewer' && !fase.done && fase.modo !== 'libre')
-    return { ...fase, ...act, pct: Math.max(fase.pct, 65), fase: 'En revisión', modo: 'revisando', vivo, rolVivo, atascado: false };
-  // «Trabajando» solo con un worker vivo o pruebas corriendo; sin eso el ticket está detenido (p. ej. tras un reinicio).
-  if (['trabajando', 'revisando'].includes(fase.modo) && !vivo && !act.pruebas)
-    return { ...fase, ...act, modo: 'detenido', fase: `Detenido · ${fase.fase}`, vivo, atascado: false };
+  const nodos = procesos.filter((p) => {
+    const u = ubicar(p.cmd);
+    return u && u.grupo === grupo.toLowerCase() && u.carpeta === String(id);
+  }).length;
+  // ¿Lo último que se lanzó es la revisión? El pendiente del reviewer o su brief, más nuevos que impl.md y review.md
+  // (y que el último brief del implementer, que reabre la vuelta tras unos CAMBIOS).
+  const t = (f) => mtime(join(rdir, f));
+  const revisado = Math.max(t('impl.md'), t('review.md'), ultimoArchivo(rdir, /^brief-implementer-\d+\.md$/));
+  const revisionEnCurso = t('reviewer-desktop.pendiente.json') > Math.max(t('review.md'), t('implementer-desktop.pendiente.json')) ||
+    ultimoArchivo(rdir, /^brief-reviewer-\d+\.md$/) > revisado;
+  const vida = vidaDe({
+    rolProceso: trabajadoresVivos().get(id) ?? null,
+    nodosEnWorktree: nodos,
+    ultimaActividadMs: act.actividad ? Date.parse(act.actividad) : 0,
+    pendienteDesktop: pendienteDesktop(rdir),
+    asignado,
+    revisionEnCurso,
+  }, Date.now(), ajustes().colgados.sinActividadMin);
+  const r = { act, inactivo, vida };
+  cache?.set(clave, r);
+  return r;
+}
+
+async function faseDe(id, repo, cfg, eventos, asignado = true, cache = null) {
+  const fase = await faseBase(id, repo, cfg, eventos);
+  const { act, inactivo, vida } = await senalesDe(id, repo, cfg, asignado, cache);
+  const vivo = vida.vivo;
+  const rolVivo = vida.rol;
+  const extra = { vivo, rolVivo, vivoPor: vida.por };
+  // Una revisión viva (proceso del reviewer, o su sesión de Desktop) se ve «En revisión», con el revisor al lado.
+  if (vivo && rolVivo === 'reviewer' && !fase.done && fase.modo !== 'libre')
+    return { ...fase, ...act, ...extra, pct: Math.max(fase.pct, 65), fase: 'En revisión', modo: 'revisando', atascado: false };
+  // Detenido solo si no hay ninguna señal de vida durante la ventana: ni proceso, ni node, ni cambios, ni una sesión
+  // de Desktop recién lanzada. Es el mismo umbral del colgado «sin trabajo vivo».
+  if (['trabajando', 'revisando'].includes(fase.modo) && !vivo)
+    return { ...fase, ...act, ...extra, modo: 'detenido', fase: `Detenido · ${fase.fase}`, atascado: false };
   // Atascado: sin cambios en 20 min, sin pruebas corriendo y con el trabajo aún en manos del agente (antes de
   // aprobado). Lo aprobado o en QA espera a una persona, no al agente.
-  return { ...fase, ...act, vivo, atascado: inactivo && !act.pruebas && !fase.done && fase.pct < 75 };
+  return { ...fase, ...act, ...extra, atascado: inactivo && !act.pruebas && !fase.done && fase.pct < 75 };
 }
 
 async function faseBase(id, repo, cfg, eventos) {
@@ -603,12 +655,20 @@ async function calcular() {
   const eventos = historial();
   const asignacion = leerJson(join(PROGRESS, 'oficina', 'agentes.json'));
   let lista = (asignacion?.agentes ?? agentesAutomaticos(cfg, eventos)).slice(0, MAX_AGENTES);
+  const senales = new Map();
+  const repoPor = (a) => a.repo ?? [...cfg.repos.keys()][0];
   if (asignacion) {
+    // Un worker vivo que no está en agentes.json ocupa un escritorio libre, o el de un ticket asignado sin ninguna
+    // señal de vida. Nunca desplaza a un agente asignado que trabaja (p. ej. con Desktop, que no deja proceso orq).
     const vivos = trabajadoresVivos();
     for (const id of vivos.keys()) {
       if (lista.some((a) => Number(a.ticket) === id)) continue;
       const repo = historial().findLast((e) => e.id === id && e.repo)?.repo;
-      const libre = lista.findIndex((a) => a.ticket == null || !vivos.has(Number(a.ticket)));
+      let libre = lista.findIndex((a) => a.ticket == null);
+      for (let k = 0; libre < 0 && k < lista.length; k++) {
+        const s = await senalesDe(Number(lista[k].ticket), repoPor(lista[k]), cfg, true, senales);
+        if (!s.vida.vivo) libre = k;
+      }
       const nuevo = { nombre: `Agente ${libre < 0 ? lista.length + 1 : libre + 1}`, ticket: id, repo };
       if (libre >= 0) lista[libre] = nuevo;
       else if (lista.length < MAX_AGENTES) lista.push(nuevo);
@@ -619,7 +679,7 @@ async function calcular() {
       const comun = { n: i + 1, nombre: a.nombre ?? `Agente ${i + 1}`, sesion: a.sesion ?? null, ticket: a.ticket ?? null, repo: a.repo ?? null };
       if (a.ticket == null) return { ...comun, pct: null, fase: 'Libre', modo: 'libre' };
       try {
-        return { ...comun, ...(await faseDe(Number(a.ticket), a.repo ?? [...cfg.repos.keys()][0], cfg, eventos)) };
+        return { ...comun, ...(await faseDe(Number(a.ticket), repoPor(a), cfg, eventos, Boolean(asignacion), senales)) };
       } catch (e) {
         return { ...comun, pct: 0, fase: 'Sin datos', modo: 'libre', error: String(e?.message ?? e) };
       }

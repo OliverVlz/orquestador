@@ -6,9 +6,9 @@
     "nodePorAgenteMax": 6
   },
   "colgados": {
-    "$comentario": "Pruebas largas: jest, vitest o eslint vivos hace más de pruebasLargasMin. Sin trabajo vivo: sin procesos ni cambios en sinActividadMin.",
+    "$comentario": "Pruebas largas: jest, vitest o eslint vivos hace más de pruebasLargasMin. Sin trabajo vivo (y «Detenido»): ni proceso orq, ni node en su worktree, ni cambios, ni una sesión de Desktop recién lanzada durante sinActividadMin.",
     "pruebasLargasMin": 15,
-    "sinActividadMin": 20
+    "sinActividadMin": 15
   },
   "huerfanos": {
     "$comentario": "Además de los de tickets sin agente activo, son huérfanos los node de worktrees/ con más de viejosMin minutos que no gastan CPU.",

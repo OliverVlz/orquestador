@@ -35,7 +35,7 @@ se relee sin reiniciar.
 | `carga.ramLibreMinPct` | 15 | Con menos RAM libre, la carga se pone en rojo y suda todo agente con procesos node. |
 | `carga.nodePorAgenteMax` | 6 | Un agente con más procesos node que esto suda. |
 | `colgados.pruebasLargasMin` | 15 | jest, vitest o eslint vivos más tiempo que esto: «pruebas largas». |
-| `colgados.sinActividadMin` | 20 | Sin procesos ni cambios en el ticket durante esto: «sin trabajo vivo». |
+| `colgados.sinActividadMin` | 15 | Sin ninguna señal de vida durante esto, el ticket sale «Detenido» y colgado «sin trabajo vivo». |
 | `huerfanos.viejosMin` | 30 | Node de un ticket con agente que llevan más que esto sin una suite en curso. |
 | `ntfy.activo` / `ntfy.tema` / `ntfy.servidor` | apagado | Avisos al celular (ver abajo). |
 | `develop.cadaMin` | 15 | Cada cuánto se miran los pipelines de `develop`. |
@@ -65,7 +65,19 @@ en ella para el detalle:
 | ⛔ Bloqueado | El ticket está en `bloqueados` de `progress/oficina/cola.json` | Priorizar el ticket del que depende |
 | 🙋 Esperando a la persona | Hay una pregunta de negocio sin responder | Responder su pregunta |
 | ⏳ Pruebas largas | jest, vitest o eslint vivos hace más de `pruebasLargasMin` | Matar el proceso (botón, con confirmación) |
-| 💤 Sin trabajo vivo | Ni procesos ni cambios en el ticket o su worktree en `sinActividadMin` | Pedirle al agente que relance el reviewer o el implementer en primer plano (p. ej. un subagente esperando una tarea que ya murió) |
+| 💤 Sin trabajo vivo | Ninguna señal de vida (ver abajo) en `sinActividadMin` | Pedirle al agente que relance el reviewer o el implementer en primer plano (p. ej. un subagente esperando una tarea que ya murió) |
+
+## ¿Trabajando o detenido?
+
+Un ticket en curso está **vivo** (el agente en su escritorio) con cualquiera de estas señales, sea cual sea el motor:
+un proceso `orq.ts trabajar <id>`; algún node con `worktrees\<grupo>\<id>` en la línea de comando; cambios en su
+worktree (archivos versionables, un commit) o en `progress/tickets/<id>/` hace menos de `sinActividadMin`; o un
+`*-desktop.pendiente.json` lanzado hace menos de eso con el ticket asignado en `agentes.json`. Con el motor
+`desktop` no hay proceso orq: la sesión de Claude Desktop deja ese rastro. Está **en revisión** si el pendiente o el
+brief del reviewer son lo último que se lanzó (más nuevos que `impl.md`, `review.md` y el último brief del
+implementer). Sin ninguna señal durante la ventana sale **Detenido** y colgado «sin trabajo vivo». Un worker vivo que
+no está en `agentes.json` toma un escritorio libre, o el de un ticket asignado sin señales: nunca desplaza a un
+agente que trabaja.
 
 ## Línea de tiempo
 
