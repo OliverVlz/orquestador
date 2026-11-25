@@ -65,6 +65,7 @@ import {
   unRepo,
   type Meta,
 } from './tickets.ts';
+import { cmdGuia } from './vistas.ts';
 import { revisionMecanica, sincronizarConBase, textoConflicto } from './sincronizar.ts';
 import { fail, flagText, isDryRun, log, readSection, type Flags } from './util.ts';
 
@@ -86,6 +87,20 @@ function instalarSiFalta(repo: RepoCfg, dir: string, flags: Flags): void {
 
 const firmar = (cfg: Config, repo: RepoCfg | ProyectoCfg, text: string) =>
   signed(cfg.firma, 'dir' in repo ? repo.repository : repo.nombre, text);
+
+/**
+ * Deja `progress/guia-pruebas.md` al día. Se corre solo al final de `qa`, `pr` y `clean`: lo que hay por probar
+ * cambió. Un fallo (p. ej. Azure sin red para los títulos) no tumba el comando que lo llamó.
+ */
+function actualizarGuia(cfg: Config): void {
+  if (isDryRun()) return;
+  try {
+    cmdGuia(cfg, false);
+    log('guía de prueba actualizada: progress/guia-pruebas.md');
+  } catch (e) {
+    log(`[WARN] No se pudo actualizar la guía de prueba (${e instanceof Error ? e.message.split('\n')[0] : e}); corre \`guia\`.`);
+  }
+}
 
 /* ----------------------------------------------------------------------- start */
 
@@ -487,6 +502,7 @@ export function cmdQa(cfg: Config, id: number | null, flags: Flags): void {
       gitWrite(['reset', '--hard', from], dir, `rehacer ${branchQa} de ${repo.dir} desde ${from}`);
       log(`done -> ${branchQa} de ${repo.dir} rehecha desde ${from}`);
     }
+    actualizarGuia(cfg);
     return;
   }
   if (id === null) fail('Uso: qa <id> | qa <id> --falla --text "qué falló" | qa --reset');
@@ -497,6 +513,7 @@ export function cmdQa(cfg: Config, id: number | null, flags: Flags): void {
     updateItem(p, id, { discussion: firmar(cfg, p, `Prueba manual fallida en ${branchQa}: ${note}`) }, 'comentario de la prueba fallida');
     for (const repo of repos) record({ id, proyecto: p.nombre, repo: repo.dir, event: 'falló', note });
     log(`done -> #${id} anotado como fallido; vuelve al implementer con: trabajar ${id} --rol implementer --text "${note}"`);
+    actualizarGuia(cfg);
     return;
   }
   for (const repo of repos) {
@@ -528,6 +545,7 @@ export function cmdQa(cfg: Config, id: number | null, flags: Flags): void {
     record({ id, proyecto: p.nombre, repo: repo.dir, event: 'en-prueba', branch, hash });
     log(`done -> #${id} mezclado en ${branchQa} de ${repo.dir} (${hash}) · carpeta ${dir}`);
   }
+  actualizarGuia(cfg);
 }
 
 /* -------------------------------------------------------------------------- pr */
@@ -617,6 +635,7 @@ export function cmdPr(cfg: Config, id: number, flags: Flags): void {
     if (tested) record({ id, proyecto: p.nombre, repo: repo.dir, event: 'aceptado', pr: pr.pullRequestId, hash: tested });
     log(`done -> ${repo.dir} PR ${pr.pullRequestId}${tested ? ' (aprobado, autocompletar)' : ''}: ${url}`);
   }
+  actualizarGuia(cfg);
 }
 
 /* ----------------------------------------------------------------------- clean */
@@ -631,6 +650,7 @@ export function cmdClean(cfg: Config, id: number, flags: Flags): void {
     record({ id, proyecto: p.nombre, repo: repo.dir, event: 'limpio' });
     log(`done -> ${dir} borrada; la rama del ticket se conserva`);
   }
+  actualizarGuia(cfg);
 }
 
 /**

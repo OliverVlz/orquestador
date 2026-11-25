@@ -145,7 +145,8 @@ del flujo) o a `.claude/settings.local.json` (si es de su PC) en vez de dejar qu
   `orquestador/roles/validador.md`, agrupando los tickets por área (back y front del mismo ticket
   juntos). Cada uno deja `progress/tickets/<id>/<repo>/validacion-ia.md` y `capturas/`. El panel, la `guia` y el
   tablero lo muestran. La IA **no reemplaza** el `/qa-ok` de la persona: solo le adelanta qué mirar.
-- **Qué probar**: `guia`. Dáselo casi igual, con cada «Qué revisar» reducido a 2-4 comprobaciones y el orden
+- **Qué probar**: `guia` (se regenera sola al terminar `qa`, `pr` y `clean`; `progress/guia-pruebas.md`). Si un ticket pide un
+  rol, la guía trae «Cuentas de prueba» con el usuario y cómo crear una cuenta de ese rol (`cuentas` en `orquestador.json`). Dáselo casi igual, con cada «Qué revisar» reducido a 2-4 comprobaciones y el orden
   para levantar (back antes que front).
 - **Aceptó** (`/qa-ok <id>` o lo dice expresamente): `pr <id> --probado`. Sale el PR aprobado a su nombre y en
   autocompletar. Si dice que hay commits sin probar, no lo fuerces: `qa <id>` y pide otra prueba.
