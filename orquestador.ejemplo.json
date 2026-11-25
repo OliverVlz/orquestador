@@ -35,6 +35,8 @@
             "SESSION_SECRET"
           ],
           "levantar": "npm run dev",
+          "generados": ["openapi/openapi.json"],
+          "regenerar": "npm run openapi:export",
           "url": "http://localhost:3000/docs"
         },
         {
@@ -48,6 +50,8 @@
           "instalar": "pnpm install --frozen-lockfile",
           "verificar": "pnpm lint && pnpm build && pnpm test",
           "levantar": "pnpm dev",
+          "generados": ["src/lib/api-types/schema.d.ts"],
+          "regenerar": "pnpm api:types",
           "url": "http://localhost:5173"
         }
       ]
