@@ -3,3 +3,5 @@ node_modules/
 orquestador.json
 # Ajustes personales (tu rama de pruebas): no se versionan.
 local.json
+# Ajustes de la oficina de cada PC (umbrales, tema de ntfy): parte de oficina/config.example.json.
+oficina/config.local.json

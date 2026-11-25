@@ -1,17 +1,27 @@
 // Oficina pixel art del orquestador. Node 24, sin dependencias.
 // Sirve index.html y /estado.json en http://localhost:4400 (--puerto N u OFICINA_PUERTO para otro).
-// Solo lee el workspace (progress/, worktrees/, la config del orquestador) y Azure cada 5 min; no escribe nada.
+// Lee el workspace (progress/, worktrees/, la config del orquestador), los procesos node y Azure cada 5 min. Solo
+// escribe en progress/oficina/ (orden.json, prs.json, mascotas.json) y solo mata procesos node de worktrees/ cuando
+// la persona lo confirma en la página. Las acciones (POST) exigen el token que lleva la página servida aquí.
 import { createServer } from 'node:http';
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { cpus, freemem, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { crearAjustes } from './ajustes.mjs';
+import { crearAvisos } from './avisos.mjs';
+import { crearLinea } from './linea.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const ORQ = resolve(AQUI, '..');
 const RAIZ = resolve(process.env.ORQ_WORKSPACE ?? join(ORQ, '..'));
 const PROGRESS = join(RAIZ, 'progress');
+// La config local (orquestador.json, local.json) no se versiona: si este código corre desde otra copia del repo (un
+// worktree), se usa la del orquestador del workspace.
+const ORQ_CFG = existsSync(join(ORQ, 'orquestador.json')) ? ORQ : join(RAIZ, 'orquestador');
 const argumento = (n) => {
   const i = process.argv.indexOf(`--${n}`);
   return i > 0 ? process.argv[i + 1] : undefined;
@@ -19,6 +29,11 @@ const argumento = (n) => {
 const PUERTO = Number(argumento('puerto') ?? process.env.OFICINA_PUERTO) || 4400;
 const MAX_AGENTES = 5;
 const CADA_MS = 10_000;
+const TOKEN = randomUUID();
+const ajustes = crearAjustes(AQUI);
+const GB = 1024 ** 3;
+// El mismo tope de RAM que usa el orquestador para lanzar workers (src/ram.ts).
+const RAM_TOPE_GB = Number(process.env.ORQ_RAM_MAX_GB ?? 11);
 
 /* ------------------------------------------------------------------ utilidades */
 
@@ -36,6 +51,13 @@ const leerTexto = (ruta) => {
     return '';
   }
 };
+/** Escribe un JSON de forma atómica (archivo temporal y renombrar). */
+function escribirJson(ruta, datos) {
+  mkdirSync(dirname(ruta), { recursive: true });
+  const tmp = `${ruta}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(datos, null, 2)}\n`);
+  renameSync(tmp, ruta);
+}
 const mtime = (ruta) => {
   try {
     return statSync(ruta).mtimeMs;
@@ -80,13 +102,14 @@ const mayuscula = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : null);
 
 /** orquestador.json (del workspace) y local.json (de cada persona): repos, carpetas de worktrees y quién eres. */
 function config() {
-  const cfg = leerJson(join(ORQ, 'orquestador.json')) ?? {};
-  const local = leerJson(join(ORQ, 'local.json')) ?? {};
+  const cfg = leerJson(join(ORQ_CFG, 'orquestador.json')) ?? {};
+  const local = leerJson(join(ORQ_CFG, 'local.json')) ?? {};
   const repos = new Map();
   let etiquetaListo = 'orq-listo';
   for (const p of cfg.proyectos ?? []) {
     etiquetaListo = p.etiquetaListo ?? etiquetaListo;
-    for (const r of p.repos ?? []) repos.set(r.dir, { grupo: r.worktrees ?? r.dir, ramaBase: p.ramaBase ?? 'develop' });
+    for (const r of p.repos ?? [])
+      repos.set(r.dir, { grupo: r.worktrees ?? r.dir, ramaBase: p.ramaBase ?? 'develop', repository: r.repository ?? r.dir, ado: p.ado ?? null });
   }
   return {
     repos,
@@ -188,41 +211,51 @@ function mtimeRecursivo(dir, profundidad = 3) {
 
 // Procesos node cada 15 s con su CPU acumulada: un test corriendo en un worktree lleva su ruta en la línea de
 // comando (…\worktrees\back\366\node_modules\jest\bin\jest.js) y gasta CPU entre una lectura y la siguiente.
-let procesos = []; // { pid, cpuDelta (s, null en la primera lectura), cmd }
+let procesos = []; // { pid, cpuDelta (s, null en la primera lectura), memMb, edadMin (null si no se sabe), cmd }
 let procesosAt = 0;
+let leyendo = null;
 const cpuPrevia = new Map();
 const segundosPs = (t) => {
   const [dias, resto] = t.includes('-') ? t.split('-') : ['0', t];
   return Number(dias) * 86_400 + resto.split(':').reduce((acc, x) => acc * 60 + Number(x), 0);
 };
-function leerProcesos() {
-  if (Date.now() - procesosAt < 15_000) return;
+/** Lee los procesos node (como mucho cada 15 s, o ya con `forzar`). Devuelve la lista leída; nunca bloquea el refresco. */
+function leerProcesos(forzar = false) {
+  if (leyendo) return leyendo;
+  if (!forzar && Date.now() - procesosAt < 15_000) return Promise.resolve(procesos);
   procesosAt = Date.now();
   const [exe, args] =
     process.platform === 'win32'
       ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-          `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object { '{0}|{1}|{2}' -f $_.ProcessId, ($_.UserModeTime + $_.KernelModeTime), $_.CommandLine }`]]
-      : ['ps', ['-eo', 'pid=,time=,args=']];
-  execFile(exe, args, { encoding: 'buffer', timeout: 10_000, windowsHide: true, maxBuffer: 8 << 20 }, (err, stdout) => {
-    if (err) return;
-    const vistos = new Map();
-    procesos = decodificar(stdout).split(/\r?\n/).filter(Boolean).flatMap((linea) => {
-      let pid, cpu, cmd;
-      if (process.platform === 'win32') {
-        const m = /^(\d+)\|(\d*)\|(.*)$/.exec(linea);
-        if (!m) return [];
-        [pid, cpu, cmd] = [m[1], Number(m[2] || 0) / 1e7, m[3]];
-      } else {
-        const m = /^\s*(\d+)\s+(\S+)\s+(.*)$/.exec(linea);
-        if (!m) return [];
-        [pid, cpu, cmd] = [m[1], segundosPs(m[2]), m[3]];
-      }
-      vistos.set(pid, cpu);
-      return [{ pid, cpuDelta: cpuPrevia.has(pid) ? cpu - cpuPrevia.get(pid) : null, cmd }];
+          `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | ForEach-Object { $c = if ($_.CreationDate) { [long]($_.CreationDate.ToUniversalTime() - [datetime]'1970-01-01').TotalMilliseconds } else { 0 }; '{0}|{1}|{2}|{3}|{4}' -f $_.ProcessId, ($_.UserModeTime + $_.KernelModeTime), $_.WorkingSetSize, $c, $_.CommandLine }`]]
+      : ['ps', ['-eo', 'pid=,time=,etimes=,rss=,args=']];
+  leyendo = new Promise((ok) => {
+    execFile(exe, args, { encoding: 'buffer', timeout: 15_000, windowsHide: true, maxBuffer: 8 << 20 }, (err, stdout) => {
+      leyendo = null;
+      if (err) return ok(procesos);
+      const vistos = new Map();
+      const ahora = Date.now();
+      procesos = decodificar(stdout).split(/\r?\n/).filter(Boolean).flatMap((linea) => {
+        let pid, cpu, memMb, edadMin, cmd;
+        if (process.platform === 'win32') {
+          const m = /^(\d+)\|(\d*)\|(\d*)\|(\d*)\|(.*)$/.exec(linea);
+          if (!m) return [];
+          const creado = Number(m[4] || 0);
+          [pid, cpu, memMb, edadMin, cmd] = [m[1], Number(m[2] || 0) / 1e7, Number(m[3] || 0) / 1024 ** 2, creado ? (ahora - creado) / 60_000 : null, m[5]];
+        } else {
+          const m = /^\s*(\d+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(.*)$/.exec(linea);
+          if (!m) return [];
+          [pid, cpu, memMb, edadMin, cmd] = [m[1], segundosPs(m[2]), Number(m[4]) / 1024, Number(m[3]) / 60, m[5]];
+        }
+        vistos.set(pid, cpu);
+        return [{ pid, cpuDelta: cpuPrevia.has(pid) ? cpu - cpuPrevia.get(pid) : null, memMb: Math.round(memMb), edadMin, cmd }];
+      });
+      cpuPrevia.clear();
+      for (const [pid, cpu] of vistos) cpuPrevia.set(pid, cpu);
+      ok(procesos);
     });
-    cpuPrevia.clear();
-    for (const [pid, cpu] of vistos) cpuPrevia.set(pid, cpu);
   });
+  return leyendo;
 }
 // Workers vivos: procesos `orq.ts trabajar <id> …` (el coordinador los lanza así, con cualquier motor).
 const trabajadoresVivos = () => {
@@ -237,6 +270,151 @@ const trabajadoresVivos = () => {
   return vivos;
 };
 const normalizar = (s) => s.toLowerCase().replace(/\//g, '\\');
+
+/* ------------------------------------------------------------------ carga del PC, colgados y huérfanos */
+
+const PREFIJO_WT = normalizar(join(RAIZ, 'worktrees')) + '\\';
+/** Grupo y carpeta de worktrees/ que aparece en la línea de comando (`{ grupo: 'back', carpeta: '366' }`), o null. */
+function ubicar(cmd) {
+  const n = normalizar(cmd);
+  const i = n.indexOf(PREFIJO_WT);
+  if (i < 0) return null;
+  const m = /^([^\\"'\s]+)\\([^\\"'\s]+)/.exec(n.slice(i + PREFIJO_WT.length));
+  return m ? { grupo: m[1], carpeta: m[2] } : null;
+}
+const NOMBRE_PROCESO = /\b(jest-worker|jest|vitest|eslint|prettier|tsc|vite|playwright|nest|next|tsx|ts-node|pnpm)\b/i;
+const nombreProceso = (cmd) => NOMBRE_PROCESO.exec(cmd)?.[1]?.toLowerCase() ?? 'node';
+/** Procesos node de worktrees/ que la oficina puede llegar a matar: nunca la rama de pruebas (qa) ni el orquestador. */
+const nodosDeWorktrees = () =>
+  procesos.filter((p) => !/orq\.ts/.test(p.cmd)).map((p) => ({ ...p, u: ubicar(p.cmd) })).filter((p) => p.u && p.u.carpeta !== 'qa');
+const describir = (p, motivo) => ({
+  pid: Number(p.pid), ticket: p.u.carpeta, grupo: p.u.grupo, herramienta: nombreProceso(p.cmd),
+  edadMin: p.edadMin == null ? null : Math.round(p.edadMin), memMb: p.memMb, motivo,
+});
+
+let muestraCpu = null;
+let cpuLibre = null;
+function medirCpu() {
+  const t = cpus().map((c) => c.times);
+  const total = t.reduce((s, x) => s + x.user + x.nice + x.sys + x.idle + x.irq, 0);
+  const ocioso = t.reduce((s, x) => s + x.idle, 0);
+  if (muestraCpu && total > muestraCpu.total) cpuLibre = Math.round(((ocioso - muestraCpu.ocioso) / (total - muestraCpu.total)) * 100);
+  muestraCpu = { total, ocioso };
+}
+const redondo = (n) => Math.round(n * 10) / 10;
+function cargaDelPc(aj) {
+  medirCpu();
+  const total = totalmem();
+  const libre = freemem();
+  const ramLibrePct = Math.round((libre / total) * 100);
+  const ramUsadaGb = redondo((total - libre) / GB);
+  const wt = procesos.filter((p) => ubicar(p.cmd));
+  return {
+    ramLibrePct, ramUsadaGb, ramTotalGb: redondo(total / GB), ramTopeGb: RAM_TOPE_GB, cpuLibrePct: cpuLibre,
+    nodeTotal: procesos.length, nodeWorktrees: wt.length, memWorktreesGb: redondo(wt.reduce((s, p) => s + (p.memMb ?? 0), 0) / 1024),
+    umbral: aj.carga, alta: ramLibrePct < aj.carga.ramLibreMinPct, sobreTope: ramUsadaGb > RAM_TOPE_GB,
+  };
+}
+
+const LARGA_RE = /\b(jest|vitest|eslint)\b/i;
+/** Por qué está quieto un ticket en curso, y qué hacer. Null si no está colgado. */
+function colgadoDe(a, procs, cola, aj) {
+  if (a.done || (a.pct ?? 0) >= 75) return null;
+  const bloqueo = cola.bloqueados?.[String(a.ticket)];
+  if (bloqueo) {
+    const otro = /#?(\d{2,})/.exec(String(bloqueo))?.[1];
+    return { causa: 'bloqueado', titulo: 'Bloqueado', detalle: String(bloqueo).slice(0, 120), accion: otro ? `Priorizar #${otro}` : 'Destrabar la dependencia' };
+  }
+  if (a.espera === 'negocio')
+    return { causa: 'persona', titulo: 'Esperando a la persona', detalle: String(a.pregunta ?? '').slice(0, 160), accion: 'Responder su pregunta' };
+  const largas = procs.filter((p) => LARGA_RE.test(p.cmd) && (p.edadMin ?? 0) >= aj.colgados.pruebasLargasMin).sort((x, y) => y.edadMin - x.edadMin);
+  if (largas.length) {
+    const p = largas[0];
+    const quieto = p.cpuDelta !== null && p.cpuDelta < CPU_MIN_S ? ' sin gastar CPU' : '';
+    return {
+      causa: 'pruebas-largas', titulo: `Pruebas largas · ${Math.round(p.edadMin)} min`,
+      detalle: `${nombreProceso(p.cmd)} (PID ${p.pid}) lleva ${Math.round(p.edadMin)} min${quieto}`, accion: `Matar el proceso ${p.pid}`, pid: Number(p.pid),
+    };
+  }
+  if (!procs.length && !a.vivo && a.inactivoMin != null && a.inactivoMin >= aj.colgados.sinActividadMin) {
+    const rol = a.modo === 'revisando' || a.modo === 'esperando' || /revisi/i.test(a.fase ?? '') ? 'reviewer' : 'implementer';
+    return {
+      causa: 'sin-trabajo', titulo: `Sin trabajo vivo · ${a.inactivoMin} min`,
+      detalle: 'Ni procesos ni cambios en el ticket o su worktree: el worker (o el subagente que esperaba) ya no corre.',
+      accion: `Pedirle al agente que relance el ${rol} en primer plano`,
+    };
+  }
+  return null;
+}
+
+/** Node de worktrees/ sin agente activo en su ticket, o viejos sin que su ticket tenga una suite gastando CPU. */
+function huerfanos() {
+  const aj = ajustes();
+  const nodos = nodosDeWorktrees();
+  const cpuTicket = new Map();
+  for (const p of nodos) cpuTicket.set(p.u.carpeta, (cpuTicket.get(p.u.carpeta) ?? 0) + (p.cpuDelta ?? 0));
+  const activos = new Set(
+    (estado.agentes ?? []).filter((a) => a.ticket != null && (a.vivo || a.pruebas || (a.inactivoMin ?? Infinity) < 5)).map((a) => String(a.ticket)),
+  );
+  for (const id of trabajadoresVivos().keys()) activos.add(String(id));
+  return nodos.flatMap((p) => {
+    const id = p.u.carpeta;
+    if (!activos.has(id)) return [describir(p, 'su ticket no tiene agente activo')];
+    if ((p.edadMin ?? 0) > aj.huerfanos.viejosMin && (cpuTicket.get(id) ?? 0) < CPU_MIN_S)
+      return [describir(p, `${Math.round(p.edadMin)} min y ninguna suite en curso`)];
+    return [];
+  });
+}
+
+/** Mata, uno a uno y sin árbol (/T), solo los PID que están en `permitidos` en este momento. */
+function matar(pids, permitidos) {
+  const lista = new Map(permitidos.map((p) => [p.pid, p]));
+  const hechos = [];
+  const fallos = [];
+  for (const pid of new Set((Array.isArray(pids) ? pids : []).map(Number))) {
+    if (!lista.has(pid)) {
+      fallos.push({ pid, error: 'ya no está en la lista' });
+      continue;
+    }
+    try {
+      process.kill(pid);
+      hechos.push(lista.get(pid));
+    } catch (e) {
+      fallos.push({ pid, error: e?.code ?? String(e) });
+    }
+  }
+  return { hechos, fallos };
+}
+
+/* ------------------------------------------------------------------ mascotas (solo visual) */
+
+const TIPOS_MASCOTA = ['perro', 'gato', 'iguana', 'pecera', 'loro', 'hamster', 'tortuga', 'conejo'];
+const NOMBRE_MASCOTA = { perro: 'Firulais', gato: 'Michi', iguana: 'Iggy', pecera: 'Nemo', loro: 'Lorenzo', hamster: 'Bolita', tortuga: 'Manuelita', conejo: 'Copito' };
+const MAX_MASCOTAS = 3;
+const RUTA_MASCOTAS = join(PROGRESS, 'oficina', 'mascotas.json');
+function mascotas() {
+  const m = leerJson(RUTA_MASCOTAS);
+  return Array.isArray(m?.mascotas) ? m.mascotas.filter((x) => TIPOS_MASCOTA.includes(x.tipo)).slice(0, MAX_MASCOTAS) : [];
+}
+function cambiarMascotas({ accion, tipo, id } = {}) {
+  const lista = mascotas();
+  const ahora = new Date().toISOString();
+  if (accion === 'poner') {
+    if (!TIPOS_MASCOTA.includes(tipo)) throw new Error('Esa mascota no existe');
+    if (lista.length >= MAX_MASCOTAS) throw new Error(`Máximo ${MAX_MASCOTAS} mascotas a la vez`);
+    if (lista.some((m) => m.tipo === tipo)) throw new Error('Ya está en la oficina');
+    lista.push({ id: randomUUID().slice(0, 8), tipo, nombre: NOMBRE_MASCOTA[tipo], desde: ahora, comio: ahora, acariciada: ahora });
+  } else {
+    const m = lista.find((x) => x.id === id);
+    if (!m) throw new Error('Esa mascota ya no está');
+    if (accion === 'quitar') lista.splice(lista.indexOf(m), 1);
+    else if (accion === 'alimentar') m.comio = ahora;
+    else if (accion === 'acariciar') m.acariciada = ahora;
+    else throw new Error('Acción desconocida');
+  }
+  escribirJson(RUTA_MASCOTAS, { $comentario: 'Mascotas de la oficina (solo visual): las pone y las quita la página.', mascotas: lista });
+  return lista;
+}
 
 /** Último cambio en la carpeta del ticket (worktree y progress/tickets/<id>/) y si hay tests corriendo en ella. */
 async function actividadDe(tdir, wt) {
@@ -449,6 +627,23 @@ async function calcular() {
   );
   for (const a of agentes) a.falta = a.pct == null ? null : 100 - a.pct;
 
+  const aj = ajustes();
+  const carga = cargaDelPc(aj);
+  const cola = leerJson(join(PROGRESS, 'oficina', 'cola.json')) ?? {};
+  for (const a of agentes) {
+    if (a.ticket == null) continue;
+    const grupo = String(cfg.repos.get(a.repo)?.grupo ?? a.grupo ?? a.repo ?? '').toLowerCase();
+    const procs = procesos.filter((p) => {
+      const u = ubicar(p.cmd);
+      return u && u.grupo === grupo && u.carpeta === String(a.ticket);
+    });
+    a.nodos = procs.length;
+    a.memMb = procs.reduce((s, p) => s + (p.memMb ?? 0), 0);
+    a.suda = a.nodos > aj.carga.nodePorAgenteMax || (carga.alta && a.nodos > 0);
+    a.colgado = colgadoDe(a, procs, cola, aj);
+  }
+  avisos.revisarAgentes(agentes);
+
   const hoy = diaLocal(Date.now());
   const cerradosHoy = new Set(eventos.filter((e) => e.event === 'aceptado' && diaLocal(e.at) === hoy).map((e) => e.id)).size;
   const enQaHoy = new Set(eventos.filter((e) => e.event === 'en-prueba' && diaLocal(e.at) === hoy).map((e) => e.id)).size;
@@ -469,6 +664,16 @@ async function calcular() {
     agentes,
     recientes,
     agentesDe: asignacion ? 'agentes.json' : 'tickets en curso',
+    carga,
+    cola: { proximos: cola.proximos ?? [], bloqueados: cola.bloqueados ?? {}, pendientePr: cola.pendiente_pr ?? {} },
+    develop: avisos.develop,
+    avisos: avisos.estado(),
+    orden: leerJson(join(PROGRESS, 'oficina', 'orden.json')),
+    mascotas: mascotas(),
+    // Lo último que pasó, para las reacciones de la escena (el loro repite los dictámenes, el perro celebra los PR).
+    dictamenes: eventos.filter((e) => e.event === 'trabajo' && e.rol === 'reviewer' && /^(APROBADO|CAMBIOS)$/.test(e.resultado ?? ''))
+      .slice(-10).map((e) => ({ id: e.id, at: e.at, resultado: e.resultado })),
+    aceptados: eventos.filter((e) => e.event === 'aceptado').slice(-10).map((e) => ({ id: e.id, at: e.at })),
     persona: cfg.persona ?? azure.persona ?? null,
     marca: cfg.marca,
     aviso: null,
@@ -585,6 +790,12 @@ async function consultarAzure() {
     await refrescar();
   }
 }
+const avisos = crearAvisos({ ajustes, az, log: (m) => console.log(m) });
+const linea = crearLinea({ PROGRESS, leerJson, escribirJson, az, repoCfg: (dir) => config().repos.get(dir) });
+async function vigilarDevelop() {
+  await avisos.revisarDevelop(config().ados);
+  setTimeout(vigilarDevelop, Math.max(5, Number(ajustes().develop?.cadaMin) || 15) * 60_000);
+}
 let estado = { actualizado: null, agentes: [], recientes: [], cerradosHoy: 0 };
 let calculando = false;
 async function refrescar() {
@@ -602,23 +813,120 @@ await refrescar();
 setInterval(refrescar, CADA_MS);
 consultarAzure();
 setInterval(consultarAzure, AZ_CADA_MS);
+setTimeout(vigilarDevelop, 20_000);
 
 /* ------------------------------------------------------------------ servidor */
 
-createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  if (url.pathname === '/estado.json') {
-    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-    return res.end(JSON.stringify(estado));
+const json = (res, codigo, datos) => {
+  res.writeHead(codigo, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(datos));
+};
+async function cuerpo(req) {
+  let texto = '';
+  for await (const trozo of req) {
+    texto += trozo;
+    if (texto.length > 64 * 1024) throw new Error('Petición demasiado grande');
   }
+  return texto ? JSON.parse(texto) : {};
+}
+// Solo se atiende a localhost (evita que otra página use la oficina por DNS rebinding) y las acciones exigen el token
+// de la página: un sitio ajeno no puede leerlo ni mandar la cabecera sin que el navegador lo bloquee.
+const HOST_OK = /^(localhost|127\.0\.0\.1)(:\d+)?$/;
+const ORIGEN_OK = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const ESTATICOS = { '/panel.js': 'text/javascript; charset=utf-8', '/mascotas.js': 'text/javascript; charset=utf-8' };
+const FRASE = { pausar: 'pausa todos los agentes', reanudar: 'reanuda todos los agentes' };
+function orden(accion, extra = {}) {
+  const datos = { accion, fecha: new Date().toISOString(), origen: 'oficina', ...extra };
+  escribirJson(join(PROGRESS, 'oficina', 'orden.json'), datos);
+  return { ...datos, frase: FRASE[accion], nota: 'La oficina no controla las sesiones de los agentes: pégale la frase al coordinador.' };
+}
+
+async function api(req, res, url) {
+  const ruta = `${req.method} ${url.pathname}`;
+  if (req.method === 'POST') {
+    const origen = req.headers.origin;
+    if ((origen && !ORIGEN_OK.test(origen)) || req.headers['x-oficina-token'] !== TOKEN) return json(res, 403, { error: 'Token inválido: recarga la página.' });
+  }
+  switch (ruta) {
+    case 'GET /api/huerfanos':
+      await leerProcesos(true);
+      return json(res, 200, { lista: huerfanos(), viejosMin: ajustes().huerfanos.viejosMin });
+    case 'POST /api/huerfanos/matar': {
+      const { pids } = await cuerpo(req);
+      await leerProcesos(true);
+      return json(res, 200, matar(pids, huerfanos()));
+    }
+    case 'GET /api/pausar':
+      await leerProcesos(true);
+      return json(res, 200, { lista: nodosDeWorktrees().map((p) => describir(p, 'pausa')), frase: FRASE.pausar });
+    case 'POST /api/pausar': {
+      const { pids } = await cuerpo(req);
+      await leerProcesos(true);
+      const r = matar(pids, nodosDeWorktrees().map((p) => describir(p, 'pausa')));
+      return json(res, 200, { ...r, ...orden('pausar', { procesosTerminados: r.hechos.length }) });
+    }
+    case 'POST /api/reanudar':
+      return json(res, 200, orden('reanudar'));
+    case 'POST /api/procesos/matar': {
+      // Un proceso concreto (p. ej. la acción sugerida de «pruebas largas»): solo si es un node de worktrees/.
+      const { pids } = await cuerpo(req);
+      await leerProcesos(true);
+      return json(res, 200, matar(pids, nodosDeWorktrees().map((p) => describir(p, 'a pedido'))));
+    }
+    case 'GET /api/linea': {
+      const id = Number(url.searchParams.get('ticket'));
+      const repo = url.searchParams.get('repo') ?? '';
+      if (!Number.isInteger(id) || id <= 0 || !config().repos.has(repo)) return json(res, 400, { error: 'ticket o repo inválido' });
+      return json(res, 200, await linea.lineaDe(id, repo, historial(), azure.listaSemana ?? []));
+    }
+    case 'GET /api/mascotas':
+      return json(res, 200, { mascotas: mascotas(), tipos: TIPOS_MASCOTA, max: MAX_MASCOTAS });
+    case 'POST /api/mascotas':
+      try {
+        const lista = cambiarMascotas(await cuerpo(req));
+        estado = { ...estado, mascotas: lista };
+        return json(res, 200, { mascotas: lista });
+      } catch (e) {
+        return json(res, 400, { error: e.message });
+      }
+    case 'POST /api/avisos/probar':
+      if (!avisos.estado().configurado) return json(res, 400, { error: 'Los avisos están apagados: falta el tema en oficina/config.local.json.' });
+      return json(res, 200, { enviado: await avisos.enviar('Prueba de la oficina') });
+    default:
+      return json(res, 404, { error: 'No existe' });
+  }
+}
+
+createServer(async (req, res) => {
+  if (!HOST_OK.test(String(req.headers.host ?? ''))) {
+    res.writeHead(403);
+    return res.end();
+  }
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  try {
+    if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+  } catch (e) {
+    return json(res, 500, { error: String(e?.message ?? e) });
+  }
+  if (url.pathname === '/estado.json') return json(res, 200, estado);
   if (url.pathname === '/' || url.pathname === '/index.html') {
     try {
-      const html = await readFile(join(AQUI, 'index.html'));
+      const html = (await readFile(join(AQUI, 'index.html'), 'utf8')).replace('__OFICINA_TOKEN__', TOKEN);
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(html);
     } catch {
       res.writeHead(500);
       return res.end('Falta oficina/index.html');
+    }
+  }
+  if (ESTATICOS[url.pathname]) {
+    try {
+      const js = await readFile(join(AQUI, url.pathname.slice(1)));
+      res.writeHead(200, { 'content-type': ESTATICOS[url.pathname], 'cache-control': 'no-store' });
+      return res.end(js);
+    } catch {
+      res.writeHead(404);
+      return res.end();
     }
   }
   res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
