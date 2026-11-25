@@ -3,9 +3,13 @@
 Una oficina en pixel art para ver a los agentes del orquestador trabajando en vivo: cada uno en su escritorio
 (teclea, revisa, espera o se rasca la cabeza si está bloqueado), con un cartel de su ticket encima; el jefe
 orquestador en su oficina; y los libres tomando tinto o en el sofá. Arriba, los tickets en **Done hoy** y en la
-**semana**, con un botón ▾ que despliega cuáles son.
+**semana**, con un botón ▾ que despliega cuáles son; la carga del PC, el estado de `develop` y un menú de **Control**.
+Clic en un agente (o en su cartel) abre la **línea de tiempo** de su ticket, y a la izquierda (🐾) se adoptan
+**mascotas**.
 
-Node 24 y nada más: sin dependencias, sin CDNs ni imágenes externas. Solo lee; no escribe nada.
+Node 24 y nada más: sin dependencias, sin CDNs ni imágenes externas. Lee el workspace; solo escribe en
+`progress/oficina/` (`orden.json`, `prs.json`, `mascotas.json`) y solo mata procesos node de `worktrees/` cuando lo
+confirmas en la página.
 
 ## Arrancar
 
@@ -17,8 +21,96 @@ node orquestador/orq.ts oficina --puerto 4500    # otro puerto
 node orquestador/oficina/server.mjs              # lo mismo, sin pasar por orq
 ```
 
-También sirven `OFICINA_PUERTO` (puerto) y `ORQ_WORKSPACE` (otro workspace). Solo escucha en `127.0.0.1`; se
-cierra con Ctrl+C.
+También sirven `OFICINA_PUERTO` (puerto) y `ORQ_WORKSPACE` (otro workspace). Solo escucha en `127.0.0.1`, solo
+atiende a `localhost` y las acciones (POST) exigen el token que lleva la página que sirvió: otra página del
+navegador no puede matar procesos ni escribir órdenes. Se cierra con Ctrl+C.
+
+## Ajustes (`oficina/config.local.json`)
+
+Copia `oficina/config.example.json` como `oficina/config.local.json` (no se versiona) y deja solo lo que cambies;
+se relee sin reiniciar.
+
+| Ajuste | Por defecto | Para qué |
+|---|---|---|
+| `carga.ramLibreMinPct` | 15 | Con menos RAM libre, la carga se pone en rojo y suda todo agente con procesos node. |
+| `carga.nodePorAgenteMax` | 6 | Un agente con más procesos node que esto suda. |
+| `colgados.pruebasLargasMin` | 15 | jest, vitest o eslint vivos más tiempo que esto: «pruebas largas». |
+| `colgados.sinActividadMin` | 20 | Sin procesos ni cambios en el ticket durante esto: «sin trabajo vivo». |
+| `huerfanos.viejosMin` | 30 | Node de un ticket con agente que llevan más que esto sin una suite en curso. |
+| `ntfy.activo` / `ntfy.tema` / `ntfy.servidor` | apagado | Avisos al celular (ver abajo). |
+| `develop.cadaMin` | 15 | Cada cuánto se miran los pipelines de `develop`. |
+
+## Control (menú 🎛)
+
+- **Carga del PC**: RAM y CPU libres (barras arriba), procesos node en total y en `worktrees/`, y el tope de RAM
+  del orquestador (`ORQ_RAM_MAX_GB`). Cada agente cuenta los node con `worktrees<grupo><id>` en su línea de
+  comando; si pasa del umbral, **suda** (gotas pixel).
+- **Matar procesos huérfanos**: lista primero (con casillas) los node de `worktrees/` cuyo ticket no tiene agente
+  activo (ni worker vivo, ni pruebas, ni cambios en 5 min), o que llevan más de `viejosMin` sin que su ticket
+  tenga una suite gastando CPU. Mata cada PID por separado: nunca un árbol (`/T`), nunca la rama de pruebas
+  (`qa`) ni el orquestador, y solo PID que siguen en la lista en ese momento.
+- **Pausar todo / Reanudar todo**: la oficina **no** controla las sesiones de Claude Desktop, así que no lo simula.
+  Pausar mata (con confirmación) los node de `worktrees/`, escribe `progress/oficina/orden.json`
+  (`{ accion, fecha, origen, procesosTerminados }`) y te da la frase para pegarle al coordinador
+  («pausa todos los agentes»). Reanudar escribe la orden y te da «reanuda todos los agentes». **Quien ejecuta es el
+  coordinador.**
+
+## Colgados: causa y acción
+
+La etiqueta bajo el escritorio dice por qué está quieto un ticket en curso (antes de aprobado) y qué hacer; clic
+en ella para el detalle:
+
+| Causa | Cuándo | Acción sugerida |
+|---|---|---|
+| ⛔ Bloqueado | El ticket está en `bloqueados` de `progress/oficina/cola.json` | Priorizar el ticket del que depende |
+| 🙋 Esperando a la persona | Hay una pregunta de negocio sin responder | Responder su pregunta |
+| ⏳ Pruebas largas | jest, vitest o eslint vivos hace más de `pruebasLargasMin` | Matar el proceso (botón, con confirmación) |
+| 💤 Sin trabajo vivo | Ni procesos ni cambios en el ticket o su worktree en `sinActividadMin` | Pedirle al agente que relance el reviewer o el implementer en primer plano (p. ej. un subagente esperando una tarea que ya murió) |
+
+## Línea de tiempo
+
+Clic en un agente o en su cartel: start, cada brief (inicio de una vuelta), implementación lista, cada revisión con
+su número y dictamen, preguntas, QA, PR y Done en Azure, con la duración entre uno y otro. Sale del historial y de
+las fechas de los archivos de `progress/tickets/<id>/<repo>/`. El PR viene del historial (`aceptado`) o de
+`az repos pr list` por la rama del ticket, solo al abrir la línea de tiempo y con caché de 30 min en
+`progress/oficina/prs.json`.
+
+## Avisos al celular (ntfy)
+
+Apagados por defecto. Para encenderlos, en `oficina/config.local.json`:
+
+```json
+{ "ntfy": { "activo": true, "tema": "un-tema-largo-y-dificil-de-adivinar" } }
+```
+
+y suscríbete a ese tema en la app de ntfy. Cualquiera que sepa el tema lee los avisos: elige uno largo. Avisa
+cuando un agente pasa a colgado (con su causa) o a bloqueado, y cuando el último pipeline de `develop` pasa a
+fallido. El mensaje lleva solo el id del ticket y el estado (`#306 colgado: sin trabajo vivo`, `develop en rojo
+(pipeline 7)`): nada de nombres, correos, rutas ni secretos. En **Control** hay un botón para mandar un aviso de
+prueba.
+
+**`develop` en rojo** sale de los pipelines de Azure que corren sobre `develop` (chip «⎇ develop» arriba). Si el
+proyecto no tiene ninguno, el chip dice «sin pipeline»: compilar `origin/develop` por nuestra cuenta (`tsc`) exigiría
+un checkout aparte con sus dependencias instaladas, y quedó para después.
+
+## Mascotas 🐾
+
+Solo visual: nada toca el flujo. Hasta 3 a la vez (perro, gato, iguana, peces, loro, hámster, tortuga, conejo),
+cada una con su casa (casita, rascador, terrario, pecera, jaula, jaula con rueda, estanque, conejera) y una máquina
+de estados con algo de azar:
+
+- **Perro**: pasea, trae la pelota al que se la tiró, mueve la cola junto a quien cerró un PR (con confeti) y le
+  ladra al agente colgado o atascado.
+- **Gato**: duerme sobre el teclado del agente en pausa, tumba la taza del escritorio 2 (y sale corriendo) y se
+  acurruca en la zona soleada bajo la ventana del jefe.
+- **Iguana**: trepa la pared y toma sol en la ventana; casi no se mueve.
+- **Peces**: suben a la superficie si alguien pasa cerca (y cuando les das de comer).
+- **Loro**: repite «¡APROBADO!» o «¡CAMBIOS!» cuando un reviewer da su dictamen; a ratos silba o vuela a un monitor.
+- **Hámster** (rueda y escapadas en su bola), **tortuga** (lenta; se esconde si pasa alguien) y **conejo** (salta,
+  olfatea a los agentes, come zanahoria).
+
+Tienen hambre (sube con el tiempo), sueño y cariño: en el panel 🐾 se alimentan, se acarician (o clic sobre la
+mascota) y se quitan. Se guardan en `progress/oficina/mascotas.json` para que sobrevivan al reinicio.
 
 ## De dónde sale cada cosa
 
